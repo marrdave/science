@@ -1,0 +1,16 @@
+{
+  "name": "Science Kit Companion",
+  "short_name": "Science Lab",
+  "description": "A friendly guide to the 150 Fun Science Experiments kit.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#4c2a86",
+  "background_color": "#f7f4ef",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

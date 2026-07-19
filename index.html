@@ -1,14 +1,1054 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#1F1B4D" />
-    <title>Science Kit Companion</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4c2a86">
+<title>Science Kit Companion</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Science Lab">
+<style>
+:root{
+  --ink:#1a1730; --ink-soft:#5a5470; --line:#e7e3f0; --paper:#f7f4ef; --card:#ffffff;
+  --chem:#7c3aed; --chem-bg:#f2ebff; --phys:#0e7ec9; --phys-bg:#e3f3fd;
+  --earth:#d98016; --earth-bg:#fdf0dd; --life:#2fa66b; --life-bg:#e4f6ec;
+  --gold:#f4b942; --danger:#c0392b;
+  --shadow:0 6px 20px rgba(26,23,48,.08); --shadow-lg:0 14px 40px rgba(26,23,48,.14);
+  --r:20px; --maxw:920px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color:var(--ink); background:var(--paper);
+  background-image:radial-gradient(circle at 1px 1px,rgba(26,23,48,.045) 1px,transparent 0);
+  background-size:22px 22px;
+  -webkit-font-smoothing:antialiased; line-height:1.5; padding-bottom:78px;
+}
+body.compact{--r:14px}
+h1,h2,h3{line-height:1.15; margin:0}
+button{font-family:inherit; cursor:pointer; border:0; background:none}
+input,select{font-family:inherit; font-size:1rem}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 16px}
+.hidden{display:none !important}
+.tag{display:inline-flex; align-items:center; gap:6px; font-size:.72rem; font-weight:800;
+  letter-spacing:.02em; text-transform:uppercase; padding:5px 10px; border-radius:999px}
+.cat-Chemistry{color:var(--chem); background:var(--chem-bg)}
+.cat-Physics{color:var(--phys); background:var(--phys-bg)}
+.cat-Earth\ Science, .cat-Earth{color:var(--earth); background:var(--earth-bg)}
+.cat-Life\ \&\ Plants, .cat-Life{color:var(--life); background:var(--life-bg)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky; top:0; z-index:30; background:rgba(247,244,239,.86);
+  backdrop-filter:saturate(1.4) blur(8px); border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex; align-items:center; gap:12px; height:60px}
+.brand{display:flex; align-items:center; gap:10px; font-weight:900; letter-spacing:-.02em; font-size:1.15rem}
+.brand .flask{width:30px;height:30px;flex:none}
+.spacer{flex:1}
+.mini-beaker{display:flex; align-items:center; gap:8px; font-weight:800; font-size:.85rem; color:var(--ink-soft)}
+
+/* ---------- hero / home ---------- */
+.hero{background:linear-gradient(135deg,#4c2a86,#7c3aed 55%,#0e7ec9);
+  color:#fff; border-radius:var(--r); padding:22px; box-shadow:var(--shadow-lg); position:relative; overflow:hidden}
+.hero:after{content:""; position:absolute; inset:0; background:
+  radial-gradient(circle at 85% 15%,rgba(244,185,66,.35),transparent 45%); pointer-events:none}
+.hero h1{font-size:clamp(1.5rem,5vw,2.1rem); font-weight:900; letter-spacing:-.02em}
+.hero p{margin:6px 0 0; opacity:.9}
+.hero-row{display:flex; gap:18px; align-items:center; margin-top:18px; flex-wrap:wrap}
+/* signature beaker */
+.beaker{width:96px;height:120px;flex:none;position:relative}
+.beaker svg{width:100%;height:100%}
+.hero-stats{flex:1; min-width:200px}
+.hero-stats .big{font-size:2.4rem; font-weight:900; line-height:1}
+.hero-stats .sub{opacity:.9; font-weight:600}
+.namebox{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap}
+.namebox input{flex:1; min-width:160px; border:2px solid rgba(255,255,255,.5); background:rgba(255,255,255,.16);
+  color:#fff; border-radius:12px; padding:10px 12px; font-weight:700}
+.namebox input::placeholder{color:rgba(255,255,255,.8)}
+
+.cat-progress{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:16px}
+.cat-card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:14px; box-shadow:var(--shadow)}
+.cat-card .n{font-weight:900; font-size:1.3rem}
+.bar{height:9px; border-radius:999px; background:var(--line); overflow:hidden; margin-top:8px}
+.bar>span{display:block; height:100%; width:0; border-radius:999px}
+
+.quick{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
+.btn{border-radius:14px; padding:13px 18px; font-weight:800; font-size:.95rem; display:inline-flex; align-items:center; gap:8px;
+  box-shadow:var(--shadow); transition:transform .06s ease}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--chem); color:#fff}
+.btn-ghost{background:var(--card); color:var(--ink); border:1px solid var(--line)}
+.btn-gold{background:var(--gold); color:#4a3200}
+.section-title{font-weight:900; letter-spacing:-.01em; font-size:1.25rem; margin:26px 0 12px}
+
+/* ---------- experiment list ---------- */
+.toolbar{position:sticky; top:60px; z-index:20; background:var(--paper); padding:12px 0}
+.search{width:100%; border:2px solid var(--line); border-radius:14px; padding:12px 14px; background:var(--card); font-weight:600}
+.chips{display:flex; gap:8px; overflow-x:auto; padding:10px 0 2px; -webkit-overflow-scrolling:touch}
+.chip{white-space:nowrap; border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:8px 13px;
+  font-weight:800; font-size:.82rem; color:var(--ink-soft)}
+.chip[aria-pressed="true"]{background:var(--ink); color:#fff; border-color:var(--ink)}
+.count-line{color:var(--ink-soft); font-weight:700; font-size:.85rem; margin:6px 2px 12px}
+
+.grid{display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.xcard{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow);
+  overflow:hidden; text-align:left; display:flex; flex-direction:column; position:relative; padding:0}
+.xcard:focus-visible{outline:3px solid var(--phys); outline-offset:2px}
+.xcard .spine{height:8px}
+.xcard .body{padding:15px 16px 16px}
+.xcard h3{font-size:1.08rem; font-weight:900; letter-spacing:-.01em; margin:10px 0 6px}
+.xcard .meta{display:flex; flex-wrap:wrap; gap:6px 12px; color:var(--ink-soft); font-weight:700; font-size:.8rem; margin-top:8px}
+.xcard .num{position:absolute; top:12px; right:14px; font-weight:900; color:var(--line); font-size:1.5rem}
+.done-flag{position:absolute; top:12px; left:12px; background:var(--life); color:#fff; border-radius:999px;
+  width:26px;height:26px; display:grid; place-items:center; font-weight:900; box-shadow:var(--shadow)}
+.stars{color:var(--gold); letter-spacing:2px}
+.superv{color:var(--danger)}
+
+/* ---------- detail ---------- */
+.detail-head{border-radius:var(--r); color:#fff; padding:20px; box-shadow:var(--shadow-lg)}
+.detail-head.Chemistry{background:linear-gradient(135deg,#7c3aed,#4c2a86)}
+.detail-head.Physics{background:linear-gradient(135deg,#0e7ec9,#0a5a92)}
+.detail-head.Earth{background:linear-gradient(135deg,#d98016,#a85c07)}
+.detail-head.Life{background:linear-gradient(135deg,#2fa66b,#1c7a4c)}
+.detail-head h2{font-size:1.6rem; font-weight:900; letter-spacing:-.02em; margin:8px 0}
+.detail-head .meta{display:flex; flex-wrap:wrap; gap:8px 16px; font-weight:800; opacity:.95; margin-top:6px}
+.panel{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:18px; box-shadow:var(--shadow); margin-top:14px}
+.panel h3{font-size:1.05rem; font-weight:900; margin-bottom:10px; display:flex; align-items:center; gap:8px}
+.needs{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+@media(max-width:560px){.needs{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}
+.needs ul{margin:0; padding-left:18px}
+.needs li{margin:4px 0}
+.approx{color:var(--ink-soft); font-size:.85em; font-weight:700}
+.steps{counter-reset:s; list-style:none; margin:0; padding:0}
+.steps li{counter-increment:s; position:relative; padding:10px 0 10px 44px; border-top:1px solid var(--line)}
+.steps li:first-child{border-top:0}
+.steps li:before{content:counter(s); position:absolute; left:0; top:9px; width:30px; height:30px; border-radius:50%;
+  background:var(--chem-bg); color:var(--chem); font-weight:900; display:grid; place-items:center}
+.callout{border-radius:14px; padding:12px 14px; font-weight:600}
+.callout.warn{background:#fdecec; color:#7a1f16; border:1px solid #f3c7c2}
+.callout.why{background:#eef4ff; color:#1c3a63; border:1px solid #d3e2fb}
+.tf{display:flex; gap:10px; margin:6px 0}
+.tf .p{font-weight:800}
+.detail-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
+.notes-area{width:100%; min-height:70px; border:2px solid var(--line); border-radius:12px; padding:10px; font-family:inherit}
+
+/* ---------- focus mode ---------- */
+.focus{position:fixed; inset:0; z-index:60; background:linear-gradient(160deg,#241a3d,#0e2540); color:#fff;
+  display:flex; flex-direction:column; padding:22px}
+.focus .fx-top{display:flex; justify-content:space-between; align-items:center; font-weight:800}
+.focus .fx-body{flex:1; display:flex; flex-direction:column; justify-content:center; max-width:640px; margin:0 auto; width:100%}
+.focus .fx-step{font-size:clamp(1.4rem,5vw,2.1rem); font-weight:800; letter-spacing:-.01em}
+.focus .fx-tip{opacity:.85; margin-top:14px; font-weight:600}
+.focus .fx-warn{background:rgba(192,57,43,.25); border:1px solid rgba(255,140,130,.5); border-radius:14px; padding:12px; margin-top:16px; font-weight:700}
+.focus .fx-nav{display:flex; gap:12px; align-items:center; justify-content:space-between; margin-top:10px}
+.focus .fx-dots{display:flex; gap:6px; flex-wrap:wrap}
+.focus .fx-dots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.3)}
+.focus .fx-dots i.on{background:var(--gold)}
+.timer{background:rgba(255,255,255,.12); border-radius:16px; padding:14px; text-align:center; margin-top:18px}
+.timer .t{font-size:2.4rem; font-weight:900; font-variant-numeric:tabular-nums}
+.fbtn{background:#fff; color:#241a3d; border-radius:14px; padding:14px 20px; font-weight:900}
+.fbtn.ghost{background:rgba(255,255,255,.16); color:#fff}
+
+/* ---------- progress / achievements ---------- */
+.ach-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px}
+.ach{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:16px; text-align:center; box-shadow:var(--shadow)}
+.ach.locked{opacity:.5; filter:grayscale(.6)}
+.ach .medal{font-size:2rem}
+.ach h4{font-weight:900; margin:8px 0 2px; font-size:.98rem}
+.ach small{color:var(--ink-soft); font-weight:700}
+
+/* ---------- certificate ---------- */
+.cert{background:#fffdf7; border:3px solid var(--gold); border-radius:var(--r); padding:30px; text-align:center; position:relative; box-shadow:var(--shadow)}
+.cert:before{content:""; position:absolute; inset:10px; border:1.5px solid #e8cf8a; border-radius:14px; pointer-events:none}
+.cert .ribbon{font-size:2.4rem}
+.cert h2{font-family:Georgia,"Times New Roman",serif; font-size:1.7rem; margin:6px 0}
+.cert .who{font-size:2rem; font-weight:900; color:var(--chem); margin:14px 0; font-family:Georgia,serif}
+.cert .sig{display:flex; justify-content:space-around; margin-top:26px; gap:20px}
+.cert .sig div{flex:1; border-top:1.5px solid var(--ink); padding-top:6px; font-weight:700; color:var(--ink-soft); font-size:.85rem}
+
+/* ---------- settings / print resources ---------- */
+.list-links{display:grid; gap:10px}
+.rowbtn{display:flex; justify-content:space-between; align-items:center; gap:12px; background:var(--card);
+  border:1px solid var(--line); border-radius:14px; padding:14px 16px; font-weight:800; box-shadow:var(--shadow); text-align:left; width:100%}
+.field{margin:12px 0}
+.field label{display:block; font-weight:800; margin-bottom:6px}
+.field input,.field select{width:100%; border:2px solid var(--line); border-radius:12px; padding:11px 12px; background:var(--card)}
+.safety-poster li{margin:8px 0; font-weight:600}
+.disclaimer{color:var(--ink-soft); font-size:.82rem; font-weight:600; margin-top:18px; text-align:center}
+
+/* ---------- bottom nav ---------- */
+nav.bottom{position:fixed; bottom:0; left:0; right:0; z-index:40; background:var(--card); border-top:1px solid var(--line);
+  display:flex; justify-content:space-around; padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+nav.bottom button{flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 2px;
+  color:var(--ink-soft); font-weight:800; font-size:.66rem; border-radius:12px}
+nav.bottom button .ic{font-size:1.25rem; line-height:1}
+nav.bottom button[aria-current="true"]{color:var(--chem)}
+
+:focus-visible{outline:3px solid var(--phys); outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{transition:none !important; animation:none !important}}
+
+/* ---------- print ---------- */
+@media print{
+  body{background:#fff; padding:0}
+  .topbar,nav.bottom,.no-print,.toolbar{display:none !important}
+  .print-only{display:block !important}
+  .view{display:block !important}
+  .panel,.xcard,.cert{box-shadow:none}
+  .checklist-print{width:100%; border-collapse:collapse}
+  .checklist-print th,.checklist-print td{border:1px solid #999; padding:6px 8px; text-align:left; font-size:.85rem}
+  .cert{page-break-inside:avoid}
+  @page{margin:14mm}
+}
+.print-only{display:none}
+</style>
+</head>
+<body>
+
+<header class="topbar no-print">
+  <div class="wrap">
+    <div class="brand">
+      <svg class="flask" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M9 3h6M10 3v6l-5 8a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 17l-5-8V3" stroke="#7c3aed" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M7.5 14h9" stroke="#0e7ec9" stroke-width="1.8"/>
+        <circle cx="10" cy="16" r="1" fill="#f4b942"/><circle cx="13.5" cy="18" r="1" fill="#2fa66b"/>
+      </svg>
+      <span>Science Lab</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="mini-beaker" id="miniProgress" aria-hidden="true"></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- HOME -->
+<section id="home" class="view">
+  <div class="hero">
+    <h1 id="greeting">Ready to experiment?</h1>
+    <p>Your kit, your lab. Pick something to make, mix or grow.</p>
+    <div class="hero-row">
+      <div class="beaker" aria-hidden="true">
+        <svg viewBox="0 0 96 120">
+          <defs><clipPath id="bkclip"><path d="M22 6h52v18L64 40v66a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8V40L22 24z"/></clipPath></defs>
+          <rect id="beakerFill" x="0" y="120" width="96" height="0" fill="#f4b942" clip-path="url(#bkclip)"/>
+          <path d="M22 6h52v18L64 40v66a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8V40L22 24z" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M18 6h60" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="hero-stats">
+        <div class="big"><span id="doneCount">0</span> <span style="opacity:.7">/ <span id="totalCount">17</span></span></div>
+        <div class="sub">experiments completed</div>
+        <div class="namebox no-print">
+          <input id="nameInput" placeholder="Type the scientist's name" aria-label="Scientist's name" maxlength="40">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cat-progress" id="catProgress"></div>
+
+  <div class="quick no-print">
+    <button class="btn btn-primary" data-goto="experiments"><span>🧪</span> Browse experiments</button>
+    <button class="btn btn-ghost" id="surpriseBtn"><span>🎲</span> Surprise me</button>
+    <button class="btn btn-ghost" id="continueBtn"><span>↩️</span> Continue last</button>
+  </div>
+
+  <div class="section-title">Quick picks</div>
+  <div class="chips no-print" id="quickChips"></div>
+  <div class="grid" id="homeGrid" style="margin-top:12px"></div>
+
+  <p class="disclaimer">A homemade companion for a “150 Fun Science Experiments” kit whose booklet was lost — not the official manual. Always have an adult nearby.</p>
+</section>
+
+<!-- EXPERIMENTS -->
+<section id="experiments" class="view hidden">
+  <div class="toolbar no-print">
+    <input class="search" id="searchInput" placeholder="Search experiments…" aria-label="Search experiments">
+    <div class="chips" id="catFilter"></div>
+    <div class="chips" id="tagFilter"></div>
+  </div>
+  <div class="count-line" id="countLine"></div>
+  <div class="grid" id="expGrid"></div>
+</section>
+
+<!-- DETAIL -->
+<section id="detail" class="view hidden"></section>
+
+<!-- PROGRESS -->
+<section id="progress" class="view hidden">
+  <div class="section-title" style="margin-top:14px">Your progress</div>
+  <div class="panel">
+    <div style="display:flex; justify-content:space-between; align-items:baseline">
+      <strong id="progHeadline" style="font-size:1.2rem"></strong>
+      <span id="progPct" style="font-weight:900; color:var(--chem)"></span>
+    </div>
+    <div class="bar" style="margin-top:10px"><span id="progBar" style="background:linear-gradient(90deg,#7c3aed,#0e7ec9)"></span></div>
+    <p id="nextMilestone" style="color:var(--ink-soft); font-weight:700; margin:12px 0 0"></p>
+  </div>
+  <div class="section-title">Badges</div>
+  <div class="ach-grid" id="achGrid"></div>
+</section>
+
+<!-- CERTIFICATE -->
+<section id="certificate" class="view hidden">
+  <div class="section-title" style="margin-top:14px">Certificate</div>
+  <div class="panel no-print">
+    <div class="field"><label for="certName">Name on certificate</label><input id="certName" placeholder="Scientist's name"></div>
+    <div class="field"><label for="certAch">Achievement</label><select id="certAch"></select></div>
+    <div class="field"><label for="certAdult">Signed off by (optional)</label><input id="certAdult" placeholder="Parent or teacher"></div>
+    <button class="btn btn-gold" id="printCertBtn">🖨️ Print / save as PDF</button>
+  </div>
+  <div id="certPreview" style="margin-top:14px"></div>
+</section>
+
+<!-- PRINT RESOURCES -->
+<section id="printables" class="view hidden">
+  <div class="section-title" style="margin-top:14px">Printables</div>
+  <div class="list-links no-print">
+    <button class="rowbtn" data-print="checklist"><span>✅ Experiment checklist</span><span>🖨️</span></button>
+    <button class="rowbtn" data-print="equipment"><span>📦 Equipment checklist</span><span>🖨️</span></button>
+    <button class="rowbtn" data-print="safety"><span>⚠️ Safety rules poster</span><span>🖨️</span></button>
+    <button class="rowbtn" data-print="observation"><span>📝 Observation sheet</span><span>🖨️</span></button>
+  </div>
+  <div id="printArea" class="print-render" style="margin-top:16px"></div>
+</section>
+
+<!-- SETTINGS -->
+<section id="settings" class="view hidden">
+  <div class="section-title" style="margin-top:14px">Settings</div>
+  <div class="panel">
+    <div class="field"><label for="setName">Scientist's name</label><input id="setName" placeholder="Name"></div>
+    <div class="field"><label for="density">Display</label>
+      <select id="density"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>Your progress data</h3>
+    <p style="color:var(--ink-soft); font-weight:600; margin-top:0">Progress is saved on this device only. Back it up before clearing your browser, or to move to another device.</p>
+    <div class="list-links">
+      <button class="rowbtn" id="exportBtn"><span>⬇️ Back up progress (download)</span><span>JSON</span></button>
+      <button class="rowbtn" id="importBtn"><span>⬆️ Restore progress (from file)</span><span>JSON</span></button>
+      <input type="file" id="importFile" accept="application/json" class="hidden">
+      <button class="rowbtn" id="resetBtn" style="color:var(--danger)"><span>🗑️ Reset all progress</span><span>⚠️</span></button>
+    </div>
+  </div>
+  <div class="panel safety-poster">
+    <h3>⚠️ Safety guide</h3>
+    <ul id="safetyList"></ul>
+  </div>
+  <p class="disclaimer">Homemade companion, not the official manufacturer manual. Experiments use standard, well-known methods for the items in this kit.</p>
+</section>
+
+</main>
+
+<nav class="bottom no-print" id="nav">
+  <button data-goto="home"><span class="ic">🏠</span>Home</button>
+  <button data-goto="experiments"><span class="ic">🧪</span>Lab</button>
+  <button data-goto="progress"><span class="ic">🏆</span>Progress</button>
+  <button data-goto="certificate"><span class="ic">📜</span>Certificate</button>
+  <button data-goto="printables"><span class="ic">🖨️</span>Print</button>
+  <button data-goto="settings"><span class="ic">⚙️</span>More</button>
+</nav>
+
+<div id="focusRoot"></div>
+
+<script>
+"use strict";
+
+/* ============================ DATA ============================ */
+var GLOBAL_SAFETY = [
+  "An adult helps with every experiment (kit is for ages 8+).",
+  "Wear the safety glasses whenever you mix or pour.",
+  "Never taste or eat anything, and keep it away from eyes and mouth.",
+  "Only open packets that are still sealed and clearly labelled.",
+  "Work on a washable tray and wash hands before and after.",
+  "Never seal or heat a fizzing reaction in a closed bottle.",
+  "Water beads and small parts are a choking hazard — keep away from under-3s and pets.",
+  "Stop and rinse with water if anything itches or stings."
+];
+
+// item quantities the user must judge/measure are flagged assumed:true -> shown as "approx"
+var EXPERIMENTS = [
+ {id:1,slug:"volcano",title:"Erupting Volcano",cat:"Earth",category:"Earth Science",status:"verified",
+  difficulty:1,minutes:10,wait:null,supervision:"Adult required",messy:true,
+  tags:["reaction","fizz","mess-ok"],
+  short:"A classic foaming eruption from an acid–base reaction.",
+  kit:[["Volcano mould","1"],["Citric acid","1 level spoon"],["Measuring spoon","1"],["Pipette","1"],["Safety glasses","1"]],
+  home:[["Baking soda","1 level spoon",false],["Water","approx 30 ml",true],["Washing-up liquid","1 squirt",false],["Food colouring","a few drops",false],["Washable tray","1",false]],
+  steps:[["Stand the volcano on a tray to catch spills.",0],
+    ["Spoon one level spoon of baking soda into the crater.",0],
+    ["Add one level spoon of citric acid on top.",0],
+    ["Add a small squirt of washing-up liquid and a few drops of colouring.",0],
+    ["Pour in about 30 ml of water and stand back.",0]],
+  result:"A coloured foam rises up and spills over the crater.",
+  why:"The citric acid and baking soda react and give off carbon-dioxide gas. The soap traps the gas into lots of bubbles, so it foams up and overflows.",
+  trouble:[["Barely fizzed","Add a little more water, or use fresh baking soda."],["Not foamy","Add another small squirt of washing-up liquid."]],
+  cleanup:"Rinse the mould and tray with water. The foam is safe to wash down the sink."},
+
+ {id:2,slug:"balloon-inflation",title:"Self-Inflating Balloon",cat:"Chemistry",category:"Chemistry",status:"verified",
+  difficulty:2,minutes:10,wait:null,supervision:"Adult required",messy:true,
+  tags:["reaction","gas","balloon"],
+  short:"Gas from a reaction blows up a balloon with no breath needed.",
+  kit:[["Volcano flask (or a bottle)","1"],["Balloon","1"],["Funnel","1"],["Measuring spoon","1"],["Safety glasses","1"]],
+  home:[["Baking soda","1 spoon",false],["White vinegar","approx 50 ml",true]],
+  steps:[["Use the funnel to put one spoon of baking soda inside the balloon.",0],
+    ["Pour about 50 ml of vinegar into the flask.",0],
+    ["Stretch the balloon's neck over the flask, keeping the powder up in the balloon.",0],
+    ["Lift the balloon upright so the baking soda drops into the vinegar.",0],
+    ["Watch the balloon inflate by itself.",0]],
+  result:"The balloon fills with gas and stands up on its own.",
+  why:"The vinegar (acid) and baking soda (base) react to make carbon-dioxide gas. The gas has nowhere to go but up into the balloon, so it inflates.",
+  trouble:[["Balloon stays floppy","Use more baking soda and fresh vinegar; make sure no gas is leaking at the neck."]],
+  cleanup:"Pour the liquid away, rinse the flask and balloon."},
+
+ {id:3,slug:"crystals",title:"Growing Crystals",cat:"Earth",category:"Earth Science",status:"verified",
+  difficulty:3,minutes:15,wait:"3–7 days",supervision:"Adult required",messy:false,
+  tags:["grow","slow","wow"],
+  short:"Grow your own sparkling crystals over a few days.",
+  kit:[["Crystal-growing powder","see your packet"],["Crystal seed","1"],["Beaker","1"],["Stirring rod","1"],["Safety glasses","1"]],
+  home:[["Hot water (an adult pours)","see your packet",true],["A quiet shelf","1",false]],
+  steps:[["An adult half-fills the beaker with hot (not boiling) water.",0],
+    ["Stir in the crystal powder a little at a time until no more dissolves. Follow the amount on YOUR packet.",0],
+    ["Drop in the crystal seed and place the beaker somewhere still.",0],
+    ["Leave it and check once a day.",0],
+    ["Over several days, watch crystals grow on the seed.",259200]],
+  result:"Crystals slowly build up on the seed and the sides of the beaker.",
+  why:"Hot water can hold a lot of dissolved powder. As the water cools and slowly evaporates, it can't hold it all, so the extra comes out as solid crystals — building on the seed.",
+  trouble:[["No crystals after days","The water may not have been saturated — dissolve more powder next time."],["Crystals never formed","Keep the beaker still — knocking or moving it stops crystals forming."]],
+  cleanup:"Keep your grown crystal! Rinse the beaker and rod.",
+  note:"Follow the ratio printed on your own crystal packet — don't guess concentrations."},
+
+ {id:4,slug:"geode",title:"Crystal & Geode Detective",cat:"Earth",category:"Earth Science",status:"verified",
+  difficulty:1,minutes:15,wait:null,supervision:"Child (adult nearby)",messy:false,
+  tags:["observe","under-10-min","calm"],
+  short:"Examine the crystal rock up close and sort what you see.",
+  kit:[["Geode / crystal rock","1"],["Magnifying glass","1"]],
+  home:[["A torch","1",false],["Paper & pencil","to draw",false]],
+  steps:[["Hold the rock under good light and look through the magnifier.",0],
+    ["Shine a torch on it — do any parts sparkle or let light through?",0],
+    ["Count how many different colours or crystal shapes you can spot.",0],
+    ["Draw what you see and label the biggest crystals.",0]],
+  result:"You notice tiny flat crystal faces and different colours you'd miss with your eyes alone.",
+  why:"Crystals grow in repeating patterns, which gives them flat faces and sharp edges. A magnifier reveals the geometry that makes each mineral look the way it does.",
+  trouble:[["Hard to see detail","Try stronger light and hold the magnifier close to your eye, then move the rock to focus."]],
+  cleanup:"Pop the rock back in the box."},
+
+ {id:5,slug:"magic-sand",title:"Magic Sand",cat:"Earth",category:"Earth Science",status:"verified",
+  difficulty:1,minutes:10,wait:null,supervision:"Adult required",messy:false,
+  tags:["water","wow","under-10-min"],
+  short:"Sand that stays completely dry underwater.",
+  kit:[["Magic sand","1 packet"],["Beaker or clear cup","1"],["Stirring rod","1"]],
+  home:[["Water","half a cup",false]],
+  steps:[["Half-fill the clear cup with water.",0],
+    ["Slowly pour a little magic sand onto the surface.",0],
+    ["Poke it with the stirring rod and watch it hold together.",0],
+    ["Scoop it out — it comes out completely dry!",0]],
+  result:"The sand clumps underwater and lifts out bone dry.",
+  why:"The sand is coated so water can't stick to it (it's 'hydrophobic'). Water pulls itself into a tight skin around the grains instead of soaking in, so they stay dry.",
+  trouble:[["Sand got wet/dark","A little ordinary water splash is fine — let it dry and it works again."]],
+  cleanup:"Let the sand dry fully, then return it to its packet to reuse."},
+
+ {id:6,slug:"water-beads",title:"Growing Water Beads",cat:"Earth",category:"Earth Science",status:"verified",
+  difficulty:1,minutes:10,wait:"3–5 hours",supervision:"Adult required",messy:false,
+  tags:["grow","slow","water"],
+  short:"Tiny beads drink up water and swell many times bigger.",
+  kit:[["Rainbow water beads","a small pinch"],["Beaker or clear cup","1"]],
+  home:[["Water","most of a cup",false]],
+  steps:[["Put a small pinch of beads in the cup — they start tiny.",0],
+    ["Fill the cup with water.",0],
+    ["Leave them for a few hours, checking their size.",18000],
+    ["Compare a grown bead to a dry one.",0]],
+  result:"The beads grow into large, squishy, colourful spheres.",
+  why:"The beads are made of a polymer that soaks up and holds hundreds of times its own weight in water, swelling as it fills.",
+  trouble:[["Beads not growing","Give them longer and make sure they're fully covered in water."]],
+  cleanup:"Never eat the beads. Bin them in the rubbish (not the toilet) when done. Keep away from young children and pets."},
+
+ {id:7,slug:"fizzy-reaction",title:"Fizz Lab",cat:"Chemistry",category:"Chemistry",status:"verified",
+  difficulty:1,minutes:10,wait:null,supervision:"Adult required",messy:false,
+  tags:["reaction","fizz","under-10-min"],
+  short:"Make and compare fizzing reactions in test tubes.",
+  kit:[["Test tubes + rack","2–3"],["Citric acid","small spoon"],["Fizzy tablet","1"],["Pipette","1"],["Safety glasses","1"]],
+  home:[["Baking soda","small spoon",false],["Water","to fill",false]],
+  steps:[["Stand the test tubes in the rack — keep them open, never sealed.",0],
+    ["Tube 1: a little baking soda + a little citric acid, then add water.",0],
+    ["Tube 2: drop in a fizzy tablet and add water.",0],
+    ["Watch which fizzes faster and longer.",0]],
+  result:"Both bubble and fizz, but at different speeds.",
+  why:"Each fizz is carbon-dioxide gas escaping from an acid–base reaction. Bigger surface area and stronger ingredients make faster bubbles.",
+  trouble:[["Overflowed","Use less next time and a bigger tube; it's harmless."]],
+  cleanup:"Rinse the tubes; the liquid is safe down the sink."},
+
+ {id:8,slug:"ph-testing",title:"pH Testing Lab",cat:"Chemistry",category:"Chemistry",status:"verified",
+  difficulty:2,minutes:20,wait:null,supervision:"Adult required",messy:false,
+  tags:["test","colour","calm"],
+  short:"Find out which safe kitchen liquids are acids or bases.",
+  kit:[["pH test strips","4–5"],["Cups","4–5"],["Pipette","1"],["Safety glasses","1"]],
+  home:[["Water","a little",false],["Vinegar","a little",false],["Baking soda in water","a little",false],["Lemon juice","a little",false]],
+  steps:[["Put a small amount of each SAFE liquid in its own cup.",0],
+    ["Dip one strip in each and lay it on a tissue.",0],
+    ["Match each strip's colour to the pH chart.",0],
+    ["Sort your liquids from most acid to most base.",0]],
+  result:"Lemon and vinegar read acidic; baking-soda water reads basic; plain water sits in the middle.",
+  why:"The strip contains dyes that change colour with acidity. Acids and bases sit at opposite ends of the pH scale.",
+  trouble:[["Colours unclear","Compare in daylight and read quickly after dipping."]],
+  cleanup:"Pour liquids away, rinse cups.",
+  note:"Only test water, vinegar, lemon and baking-soda water — never cleaners, medicines or unknown liquids."},
+
+ {id:9,slug:"chromatography",title:"Colour Chromatography",cat:"Chemistry",category:"Chemistry",status:"verified",
+  difficulty:2,minutes:20,wait:null,supervision:"Child (adult nearby)",messy:false,
+  tags:["colour","wow","calm"],
+  short:"Split a colour into the hidden colours that make it.",
+  kit:[["Filter paper","1–2"],["Cups","1"],["Food colouring","a drop or two"]],
+  home:[["Washable felt pen","1",false],["Water","a splash",false]],
+  steps:[["Cut a filter-paper strip. Draw a thick pen dot a few cm from one end.",0],
+    ["Add a shallow splash of water to the cup — below the dot line.",0],
+    ["Dip the end in so the water creeps up past the dot.",0],
+    ["Watch the colour separate into bands as the water climbs.",0]],
+  result:"One colour spreads into a rainbow of separate colours.",
+  why:"Inks are mixtures of dyes. As water climbs the paper it carries each dye a different distance, so they separate out.",
+  trouble:[["No spread","Use a water-based (washable) pen; permanent markers won't split."]],
+  cleanup:"Dry your paper strips as keepsakes; tip the water away."},
+
+ {id:10,slug:"density-tower",title:"Density Tower",cat:"Chemistry",category:"Chemistry",status:"verified",
+  difficulty:3,minutes:20,wait:null,supervision:"Child (adult nearby)",messy:false,
+  tags:["layers","wow","colour"],
+  short:"Stack liquids that refuse to mix into rainbow layers.",
+  kit:[["Test tube or tall cup","1"],["Pipette","1"],["Food colouring","few drops"]],
+  home:[["Honey or syrup","a little",false],["Washing-up liquid","a little",false],["Water","a little",false],["Cooking oil","a little",false]],
+  steps:[["Pour a layer of honey/syrup into the bottom.",0],
+    ["Gently add washing-up liquid down the side.",0],
+    ["Colour some water and trickle it on with the pipette.",0],
+    ["Finish with a layer of oil on top and let it settle.",0]],
+  result:"Four liquids sit in separate stacked layers.",
+  why:"Denser (heavier for their size) liquids sink below lighter ones. Pouring gently stops them mixing, so they stack by density.",
+  trouble:[["Layers mixed","Pour more slowly down the side, a drop at a time."]],
+  cleanup:"Tip away and wash the tube well (oil needs warm soapy water)."},
+
+ {id:11,slug:"walking-water",title:"Walking Water Rainbow",cat:"Physics",category:"Physics",status:"verified",
+  difficulty:1,minutes:40,wait:"30–60 min",supervision:"Child (adult nearby)",messy:false,
+  tags:["colour","slow","calm"],
+  short:"Colours climb paper bridges and mix in the empty cups.",
+  kit:[["Cups","5+"],["Food colouring","3 colours"],["Filter paper","several strips"]],
+  home:[["Water","to fill cups",false],["Kitchen roll (if needed)","few sheets",false]],
+  steps:[["Line up cups. Fill every other one with water + a different colour.",0],
+    ["Fold paper strips into arches from a full cup to the empty one beside it.",0],
+    ["Leave it and watch the colour climb over the bridges.",1800],
+    ["The empty cups fill up — and new colours appear where two meet.",0]],
+  result:"Water 'walks' up and over the paper, mixing red+yellow into orange, and so on.",
+  why:"Water climbs the tiny fibres in the paper by capillary action, carrying the colour with it against gravity.",
+  trouble:[["Water won't climb","Use thinner/more absorbent paper and make sure strips dip well into the water."]],
+  cleanup:"Bin the paper, tip the water, rinse cups."},
+
+ {id:12,slug:"colour-spinner",title:"Newton's Colour Spinner",cat:"Physics",category:"Physics",status:"verified",
+  difficulty:2,minutes:15,wait:null,supervision:"Child (adult nearby)",messy:false,
+  tags:["light","wow","under-10-min"],
+  short:"Spin the colour disc fast and watch the colours vanish.",
+  kit:[["Colour spinner disc","1"],["String or a pencil","1"]],
+  home:[["Steady hands","",false]],
+  steps:[["Fit the colour disc onto its spinner (or thread string through two holes).",0],
+    ["Spin it as fast as you can.",0],
+    ["Watch what happens to all the separate colours.",0],
+    ["Slow it down and the colours reappear.",0]],
+  result:"At high speed the colours blur towards a pale, near-white grey.",
+  why:"Your eyes can't keep up with the fast-moving colours, so your brain blends them together — and mixed light colours add up towards white.",
+  trouble:[["Still see colours","Spin faster and steadier; brighter light helps the effect."]],
+  cleanup:"Nothing to clean — put the disc away."},
+
+ {id:13,slug:"surface-tension",title:"Magic Pepper Escape",cat:"Physics",category:"Physics",status:"verified",
+  difficulty:1,minutes:10,wait:null,supervision:"Child (adult nearby)",messy:false,
+  tags:["water","wow","under-10-min"],
+  short:"Pepper darts away from your finger — like magic.",
+  kit:[["Beaker or a plate","1"],["Pipette","1"]],
+  home:[["Water","to fill",false],["Ground pepper","a shake",false],["Washing-up liquid","1 drop",false]],
+  steps:[["Fill the plate with a shallow layer of water.",0],
+    ["Shake pepper evenly across the surface.",0],
+    ["Touch the middle with a clean finger — nothing happens.",0],
+    ["Dab one drop of washing-up liquid on your fingertip and touch again.",0]],
+  result:"The pepper flies to the edges the instant the soapy finger touches the water.",
+  why:"Water's surface acts like a stretched skin (surface tension). Soap breaks the skin where you touch, and it pulls back to the edges, dragging the pepper along.",
+  trouble:[["Weak effect","Start with a fresh water surface and only a tiny amount of soap."]],
+  cleanup:"Tip the water away and rinse."},
+
+ {id:14,slug:"static",title:"Static Electricity Magic",cat:"Physics",category:"Physics",status:"verified",
+  difficulty:1,minutes:10,wait:null,supervision:"Child (adult nearby)",messy:false,
+  tags:["wow","under-10-min","dry"],
+  short:"Bend water and lift paper with an invisible force.",
+  kit:[["Balloon","1"]],
+  home:[["Wool or hair","to rub on",false],["Small paper bits","a pinch",false],["A thin water stream","from a tap",false]],
+  steps:[["Blow up the balloon and tie it.",0],
+    ["Rub it on your hair or a wool jumper for 15 seconds.",15],
+    ["Hold it near small torn-up paper bits.",0],
+    ["Now hold it beside a thin trickle of water from a tap.",0]],
+  result:"Paper jumps up to the balloon, and the water stream bends towards it.",
+  why:"Rubbing moves tiny charges onto the balloon (static electricity). Charged objects pull on light things nearby without even touching them.",
+  trouble:[["Nothing happens","It works best when the air is dry — rub for longer and try again."]],
+  cleanup:"Nothing to clean up."},
+
+ {id:15,slug:"balloon-rocket",title:"Balloon Rocket",cat:"Physics",category:"Physics",status:"verified",
+  difficulty:2,minutes:15,wait:null,supervision:"Child (adult nearby)",messy:false,
+  tags:["wow","build","move"],
+  short:"Race a balloon across the room on a string zip-line.",
+  kit:[["Balloon","1"],["String","a long piece"],["Paper clips or tape","a couple"]],
+  home:[["A drinking straw","1",false],["Two chairs / door handles","to tie to",false]],
+  steps:[["Thread the string through a straw.",0],
+    ["Tie each end of the string across the room, pulled tight.",0],
+    ["Blow up the balloon and pinch it shut (don't tie).",0],
+    ["Tape the balloon to the straw, then let go.",0]],
+  result:"The balloon zooms along the string to the other side.",
+  why:"Air rushes out the back of the balloon one way, which pushes the balloon the opposite way. That's Newton's third law — every action has an equal, opposite reaction.",
+  trouble:[["Slow rocket","Pull the string tighter and make sure it's level."]],
+  cleanup:"Untie the string and pop nothing — save the balloon."},
+
+ {id:16,slug:"bottle-tornado",title:"Bottle Tornado",cat:"Physics",category:"Physics",status:"verified",
+  difficulty:1,minutes:10,wait:null,supervision:"Child (adult nearby)",messy:false,
+  tags:["water","wow","under-10-min"],
+  short:"Spin up a swirling water twister in a bottle.",
+  kit:[["Food colouring","a drop"],["Funnel","1"]],
+  home:[["A clear bottle with lid","1",false],["Water","to nearly fill",false],["Washing-up liquid","1 drop",false]],
+  steps:[["Nearly fill the bottle with water and add a drop of colour.",0],
+    ["Add one drop of washing-up liquid and close the lid tightly.",0],
+    ["Hold the top and swirl the bottle fast in circles.",0],
+    ["Stop and watch the tornado spin in the middle.",0]],
+  result:"A whirlpool 'tornado' forms and slowly spins out.",
+  why:"Swirling makes the water spin around a low-pressure centre, creating a vortex — the same shape as a real tornado or whirlpool.",
+  trouble:[["No vortex","Swirl faster in tight circles, then stop suddenly."]],
+  cleanup:"Tip the water away; keep the bottle for next time."},
+
+ {id:17,slug:"colour-flowers",title:"Colour-Changing Flowers",cat:"Life",category:"Life & Plants",status:"verified",
+  difficulty:1,minutes:15,wait:"6–24 hours",supervision:"Child (adult nearby)",messy:false,
+  tags:["grow","slow","colour"],
+  short:"Turn white petals bright with coloured water.",
+  kit:[["Colour-changing flowers (or a white flower)","1–2"],["Food colouring","lots of drops"],["Cup","1"]],
+  home:[["Water","half a cup",false]],
+  steps:[["Fill the cup with water and stir in plenty of one colour.",0],
+    ["Trim the flower stem and stand it in the coloured water.",0],
+    ["Leave it somewhere bright and check over the day.",21600],
+    ["Watch the petals slowly take on the colour.",0]],
+  result:"The white petals turn the colour of the water — often at the tips first.",
+  why:"Flowers pull water up their stems by capillary action to feed the petals. The dye rides along and stains the petals as the water arrives.",
+  trouble:[["No colour change","Use more dye, a fresh cut on the stem, and give it longer."]],
+  cleanup:"Compost or bin the flower; rinse the cup."}
+];
+
+var EQUIPMENT = ["Test-tube rack","4 test tubes (blue caps)","Volcano flask","Volcano mould","Measuring beaker",
+"Mixing cups","Pipettes / droppers","Stirring rod","Measuring spoons","Funnel","Safety glasses","Magnifying glass",
+"Balloons","Balloon pump nozzle","Cotton string","Pipe cleaners","Paper clips","Filter paper","pH test strips",
+"Colour spinner disc","Crystal seed","Crystal-growing powder","Geode / crystal rock","Citric acid","Fizzy tablets",
+"Magic sand","Rainbow water beads","Colour-changing flowers","Food colourings (red / yellow / green)"];
+
+var ACHIEVEMENTS = [
+ {id:"first",medal:"🥼",title:"First Experiment",desc:"Finish your first",test:function(s){return s.n>=1}},
+ {id:"junior",medal:"🔬",title:"Junior Scientist",desc:"Finish 5",test:function(s){return s.n>=5}},
+ {id:"explorer",medal:"🧭",title:"Lab Explorer",desc:"Finish 10",test:function(s){return s.n>=10}},
+ {id:"super",medal:"⭐",title:"Super Scientist",desc:"Finish 15",test:function(s){return s.n>=15}},
+ {id:"master",medal:"🏆",title:"Master Scientist",desc:"Finish all "+EXPERIMENTS.length,test:function(s){return s.n>=EXPERIMENTS.length}},
+ {id:"chem",medal:"⚗️",title:"Chemistry Champion",desc:"All Chemistry",test:function(s){return s.byCat["Chemistry"]}},
+ {id:"phys",medal:"🧲",title:"Physics Investigator",desc:"All Physics",test:function(s){return s.byCat["Physics"]}},
+ {id:"earth",medal:"🌋",title:"Earth Explorer",desc:"All Earth Science",test:function(s){return s.byCat["Earth Science"]}},
+ {id:"life",medal:"🌸",title:"Plant Scientist",desc:"All Life & Plants",test:function(s){return s.byCat["Life & Plants"]}},
+ {id:"volcano",medal:"🌋",title:"Volcano Specialist",desc:"Erupt the volcano",test:function(s){return s.ids["1"]}},
+ {id:"crystal",medal:"💎",title:"Crystal Grower",desc:"Grow crystals",test:function(s){return s.ids["3"]}},
+ {id:"colour",medal:"🎨",title:"Colour Scientist",desc:"Do chromatography",test:function(s){return s.ids["9"]}}
+];
+
+var CATS=["Chemistry","Physics","Earth Science","Life & Plants"];
+var CAT_KEY={"Chemistry":"Chemistry","Physics":"Physics","Earth Science":"Earth","Life & Plants":"Life"};
+var CAT_COLOR={"Chemistry":"var(--chem)","Physics":"var(--phys)","Earth Science":"var(--earth)","Life & Plants":"var(--life)"};
+
+/* ============================ STATE ============================ */
+var KEY="scienceLabState_v2";
+var DEFAULTS={version:2,childName:"",completed:{},favourites:[],notes:{},unlocked:{},lastId:null,settings:{density:"comfortable"}};
+var state=load();
+function load(){try{var raw=localStorage.getItem(KEY);if(!raw)return clone(DEFAULTS);var p=JSON.parse(raw);
+  if(!p||typeof p!=="object")return clone(DEFAULTS);
+  return Object.assign(clone(DEFAULTS),p,{settings:Object.assign({},DEFAULTS.settings,p.settings||{})});
+ }catch(e){return clone(DEFAULTS)}}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function byId(id){return document.getElementById(id)}
+function el(html){var t=document.createElement("template");t.innerHTML=html.trim();return t.content.firstElementChild}
+
+function stats(){
+  var ids={}; var n=0;
+  EXPERIMENTS.forEach(function(x){if(state.completed[x.id]){ids[x.id]=true;n++}});
+  var byCat={};
+  CATS.forEach(function(c){
+    var all=EXPERIMENTS.filter(function(x){return x.category===c});
+    var done=all.filter(function(x){return state.completed[x.id]});
+    byCat[c]=all.length>0 && done.length===all.length;
+  });
+  return {n:n,ids:ids,byCat:byCat};
+}
+function stars(d){var s="";for(var i=1;i<=5;i++)s+= i<=d?"★":"";return s;}
+
+/* ============================ ROUTER ============================ */
+var VIEWS=["home","experiments","detail","progress","certificate","printables","settings"];
+function go(view,opts){
+  VIEWS.forEach(function(v){byId(v).classList.toggle("hidden",v!==view)});
+  document.querySelectorAll("#nav button").forEach(function(b){
+    b.setAttribute("aria-current", b.dataset.goto===view || (view==="detail"&&b.dataset.goto==="experiments") ? "true":"false");
+  });
+  window.scrollTo(0,0);
+  if(view==="home")renderHome();
+  if(view==="experiments")renderExperiments();
+  if(view==="progress")renderProgress();
+  if(view==="certificate")renderCertificate();
+  if(view==="settings")renderSettings();
+  if(view==="detail")renderDetail(opts.id);
+}
+document.querySelectorAll("[data-goto]").forEach(function(b){b.addEventListener("click",function(){go(b.dataset.goto)})});
+
+/* ============================ HOME ============================ */
+function renderHome(){
+  var s=stats();
+  byId("doneCount").textContent=s.n;
+  byId("totalCount").textContent=EXPERIMENTS.length;
+  var pct=Math.round(s.n/EXPERIMENTS.length*100);
+  var fillH=120*(s.n/EXPERIMENTS.length);
+  var fill=byId("beakerFill"); fill.setAttribute("height",fillH); fill.setAttribute("y",120-fillH);
+  byId("greeting").textContent = state.childName ? ("Hi "+state.childName+" 👩‍🔬") : "Ready to experiment?";
+  byId("nameInput").value=state.childName;
+  updateMini(s,pct);
+
+  var cp=byId("catProgress"); cp.innerHTML="";
+  CATS.forEach(function(c){
+    var all=EXPERIMENTS.filter(function(x){return x.category===c});
+    var done=all.filter(function(x){return state.completed[x.id]}).length;
+    var p=Math.round(done/all.length*100);
+    cp.appendChild(el(
+      '<div class="cat-card"><span class="tag cat-'+CAT_KEY[c]+'"><span class="dot" style="background:'+CAT_COLOR[c]+'"></span>'+esc(c)+'</span>'+
+      '<div class="n" style="margin-top:8px">'+done+'/'+all.length+'</div>'+
+      '<div class="bar"><span style="width:'+p+'%;background:'+CAT_COLOR[c]+'"></span></div></div>'));
+  });
+
+  // quick chips
+  var qc=byId("quickChips"); qc.innerHTML="";
+  var picks=[["under-10-min","⏱️ Under 10 min"],["wow","✨ Wow factor"],["Adult required","🧑‍🔧 With an adult"],["not-done","🆕 Not done yet"]];
+  picks.forEach(function(p){
+    var b=el('<button class="chip" aria-pressed="false">'+p[1]+'</button>');
+    b.addEventListener("click",function(){go("experiments"); setTimeout(function(){applyQuick(p[0])},30)});
+    qc.appendChild(b);
+  });
+
+  var hg=byId("homeGrid"); hg.innerHTML="";
+  EXPERIMENTS.filter(function(x){return !state.completed[x.id]}).slice(0,3).forEach(function(x){hg.appendChild(card(x))});
+  if(hg.children.length===0){hg.appendChild(el('<div class="panel">🎉 Every experiment done — you\'re a Master Scientist!</div>'))}
+}
+function updateMini(s,pct){
+  byId("miniProgress").innerHTML='🧪 <span>'+s.n+'/'+EXPERIMENTS.length+'</span>';
+}
+
+/* ============================ CARD ============================ */
+function card(x){
+  var done=!!state.completed[x.id];
+  var c=el('<button class="xcard" aria-label="'+esc(x.title)+'">'+
+    '<div class="spine" style="background:'+CAT_COLOR[x.category]+'"></div>'+
+    (done?'<div class="done-flag">✓</div>':'')+
+    '<div class="body">'+
+      '<span class="num">'+x.id+'</span>'+
+      '<span class="tag cat-'+CAT_KEY[x.category]+'">'+esc(x.category)+'</span>'+
+      '<h3>'+esc(x.title)+'</h3>'+
+      '<div style="color:var(--ink-soft);font-weight:600;font-size:.9rem">'+esc(x.short)+'</div>'+
+      '<div class="meta">'+
+        '<span class="stars" title="difficulty">'+stars(x.difficulty)+'</span>'+
+        '<span>⏱️ '+x.minutes+' min'+(x.wait?' (+wait)':'')+'</span>'+
+        (x.supervision==="Adult required"?'<span class="superv">🧑‍🔧 adult</span>':'')+
+      '</div>'+
+    '</div></button>');
+  c.addEventListener("click",function(){go("detail",{id:x.id})});
+  return c;
+}
+
+/* ============================ EXPERIMENTS LIST ============================ */
+var filterCat="all", filterTag=null, quickMode=null, searchQ="";
+function renderExperiments(){
+  var cf=byId("catFilter");
+  if(!cf.dataset.built){
+    cf.dataset.built="1";
+    var mk=function(key,label,color){
+      var b=el('<button class="chip" data-cat="'+key+'" aria-pressed="'+(key===filterCat)+'">'+label+'</button>');
+      b.addEventListener("click",function(){filterCat=key; refreshChips(); renderList()});
+      return b;
+    };
+    cf.appendChild(mk("all","All",null));
+    CATS.forEach(function(c){cf.appendChild(mk(c,c))});
+    var tf=byId("tagFilter");
+    [["under-10-min","⏱️ Quick"],["wow","✨ Wow"],["grow","🌱 Grow it"],["colour","🎨 Colour"],["not-done","🆕 To do"],["done","✅ Done"]].forEach(function(t){
+      var b=el('<button class="chip" data-tag="'+t[0]+'" aria-pressed="false">'+t[1]+'</button>');
+      b.addEventListener("click",function(){filterTag = filterTag===t[0]?null:t[0]; refreshChips(); renderList()});
+      tf.appendChild(b);
+    });
+    byId("searchInput").addEventListener("input",function(e){searchQ=e.target.value.toLowerCase(); renderList()});
+  }
+  refreshChips(); renderList();
+}
+function refreshChips(){
+  document.querySelectorAll("#catFilter .chip").forEach(function(b){b.setAttribute("aria-pressed", b.dataset.cat===filterCat)});
+  document.querySelectorAll("#tagFilter .chip").forEach(function(b){b.setAttribute("aria-pressed", b.dataset.tag===filterTag)});
+}
+function applyQuick(tag){
+  filterTag = (tag==="Adult required")?null:tag;
+  quickMode = (tag==="Adult required")?"adult":null;
+  if(tag==="not-done")filterTag="not-done";
+  renderExperiments();
+}
+function renderList(){
+  var list=EXPERIMENTS.filter(function(x){
+    if(filterCat!=="all" && x.category!==filterCat)return false;
+    if(filterTag==="not-done" && state.completed[x.id])return false;
+    if(filterTag==="done" && !state.completed[x.id])return false;
+    if(filterTag && filterTag!=="not-done" && filterTag!=="done" && x.tags.indexOf(filterTag)<0)return false;
+    if(quickMode==="adult" && x.supervision!=="Adult required")return false;
+    if(searchQ){var hay=(x.title+" "+x.short+" "+x.category+" "+x.tags.join(" ")).toLowerCase(); if(hay.indexOf(searchQ)<0)return false;}
+    return true;
+  });
+  byId("countLine").textContent=list.length+" experiment"+(list.length===1?"":"s");
+  var g=byId("expGrid"); g.innerHTML="";
+  if(list.length===0){g.appendChild(el('<div class="panel">No experiments match. Try clearing a filter.</div>'));return;}
+  list.forEach(function(x){g.appendChild(card(x))});
+}
+
+/* ============================ DETAIL ============================ */
+function renderDetail(id){
+  var x=EXPERIMENTS.filter(function(e){return e.id==id})[0]; if(!x)return go("experiments");
+  state.lastId=x.id; save();
+  var done=!!state.completed[x.id];
+  var fav=state.favourites.indexOf(x.id)>=0;
+  var kitList=x.kit.map(function(k){return '<li>'+esc(k[0])+' — <strong>'+esc(k[1])+'</strong></li>'}).join("");
+  var homeList=x.home.map(function(h){return '<li>'+esc(h[0])+' — <strong>'+esc(h[1])+'</strong>'+(h[2]?' <span class="approx">(approx — adjust)</span>':'')+'</li>'}).join("");
+  var stepsList=x.steps.map(function(s){return '<li>'+esc(s[0])+'</li>'}).join("");
+  var trouble=(x.trouble||[]).map(function(t){return '<div class="tf"><span class="p">'+esc(t[0])+':</span><span>'+esc(t[1])+'</span></div>'}).join("");
+  var noteBlock=x.note?'<div class="callout warn" style="margin-top:10px">📌 '+esc(x.note)+'</div>':'';
+  var ck=CAT_KEY[x.category];
+
+  byId("detail").innerHTML=
+  '<button class="btn btn-ghost no-print" id="backBtn" style="margin:12px 0">← Back to the lab</button>'+
+  '<div class="detail-head '+ck+'">'+
+    '<span class="tag" style="background:rgba(255,255,255,.22);color:#fff">'+esc(x.category)+' · #'+x.id+'</span>'+
+    '<h2>'+esc(x.title)+'</h2>'+
+    '<div class="meta"><span>'+stars(x.difficulty)+'</span><span>⏱️ '+x.minutes+' min'+(x.wait?' + '+esc(x.wait)+' wait':'')+'</span>'+
+      '<span>'+(x.supervision==="Adult required"?"🧑‍🔧 Adult required":"🙂 Child (adult nearby)")+'</span></div>'+
+  '</div>'+
+
+  '<div class="detail-actions no-print">'+
+    '<button class="btn '+(done?'btn-ghost':'btn-gold')+'" id="doneBtn">'+(done?'✓ Completed — undo':'✅ Mark completed')+'</button>'+
+    '<button class="btn btn-primary" id="focusBtn">▶️ Step-by-step</button>'+
+    '<button class="btn btn-ghost" id="favBtn">'+(fav?'★ Favourited':'☆ Favourite')+'</button>'+
+    '<button class="btn btn-ghost" id="printExpBtn">🖨️ Print</button>'+
+  '</div>'+
+
+  '<div class="panel"><h3>🧰 What you need</h3><div class="needs">'+
+    '<div><strong>From the kit</strong><ul>'+kitList+'</ul></div>'+
+    '<div><strong>From home</strong><ul>'+(homeList||'<li>Nothing extra</li>')+'</ul></div></div>'+noteBlock+'</div>'+
+
+  '<div class="panel"><h3>🪜 Steps</h3><ol class="steps">'+stepsList+'</ol></div>'+
+
+  '<div class="panel"><h3>🔎 What should happen?</h3><p>'+esc(x.result)+'</p>'+
+    '<div class="callout why" style="margin-top:10px"><strong>Why it works: </strong>'+esc(x.why)+'</div></div>'+
+
+  '<div class="panel"><h3>⚠️ Stay safe</h3><ul>'+x.safetyLines().map(function(l){return '<li>'+esc(l)+'</li>'}).join("")+'</ul></div>'+
+
+  (trouble?'<div class="panel"><h3>🛠️ If it doesn\'t work</h3>'+trouble+'</div>':'')+
+
+  '<div class="panel"><h3>🧽 Cleanup</h3><p>'+esc(x.cleanup)+'</p></div>'+
+
+  '<div class="panel no-print"><h3>📓 Notes</h3><textarea class="notes-area" id="notesArea" placeholder="What did you notice? What would you change?">'+esc(state.notes[x.id]||"")+'</textarea></div>'+
+
+  '<div class="detail-actions no-print" style="margin-bottom:20px">'+
+    (prevOf(x)?'<button class="btn btn-ghost" id="prevBtn">← '+esc(prevOf(x).title)+'</button>':'')+
+    (nextOf(x)?'<button class="btn btn-ghost" id="nextBtn">'+esc(nextOf(x).title)+' →</button>':'')+
+  '</div>';
+
+  byId("backBtn").addEventListener("click",function(){go("experiments")});
+  byId("doneBtn").addEventListener("click",function(){toggleDone(x.id); renderDetail(x.id)});
+  byId("focusBtn").addEventListener("click",function(){openFocus(x)});
+  byId("favBtn").addEventListener("click",function(){toggleFav(x.id); renderDetail(x.id)});
+  byId("printExpBtn").addEventListener("click",function(){window.print()});
+  byId("notesArea").addEventListener("input",function(e){state.notes[x.id]=e.target.value; save()});
+  if(byId("prevBtn"))byId("prevBtn").addEventListener("click",function(){go("detail",{id:prevOf(x).id})});
+  if(byId("nextBtn"))byId("nextBtn").addEventListener("click",function(){go("detail",{id:nextOf(x).id})});
+}
+// attach per-experiment safety = global essentials + its own
+EXPERIMENTS.forEach(function(x){
+  x.safetyLines=function(){
+    var base=["Wear the safety glasses.","Don't taste or eat anything.","An adult "+(x.supervision==="Adult required"?"does the risky steps":"stays nearby")+"."];
+    return base.concat(x.extraSafety||[]);
+  };
+});
+function prevOf(x){var i=EXPERIMENTS.indexOf(x);return i>0?EXPERIMENTS[i-1]:null}
+function nextOf(x){var i=EXPERIMENTS.indexOf(x);return i<EXPERIMENTS.length-1?EXPERIMENTS[i+1]:null}
+
+function toggleDone(id){
+  if(state.completed[id])delete state.completed[id];
+  else state.completed[id]=new Date().toISOString().slice(0,10);
+  checkAchievements(); save();
+}
+function toggleFav(id){var i=state.favourites.indexOf(id); if(i>=0)state.favourites.splice(i,1); else state.favourites.push(id); save();}
+
+/* ============================ FOCUS MODE ============================ */
+var timerInt=null;
+function openFocus(x){
+  var idx=0; var root=byId("focusRoot");
+  function stop(){if(timerInt){clearInterval(timerInt);timerInt=null}}
+  function draw(){
+    stop();
+    var step=x.steps[idx]; var seconds=step[1]||0;
+    var liveTimer = seconds>0 && seconds<=3600;   // only run a live countdown for waits up to an hour
+    var longWait = seconds>3600;
+    var label = seconds>=60 ? Math.round(seconds/60)+" min" : seconds+" sec";
+    var dots=x.steps.map(function(_,i){return '<i class="'+(i<=idx?'on':'')+'"></i>'}).join("");
+    root.innerHTML=
+    '<div class="focus" role="dialog" aria-label="Step by step">'+
+      '<div class="fx-top"><span>'+esc(x.title)+'</span><button class="fbtn ghost" id="fxClose">✕ Close</button></div>'+
+      '<div class="fx-body">'+
+        '<div style="opacity:.7;font-weight:800;margin-bottom:8px">Step '+(idx+1)+' of '+x.steps.length+'</div>'+
+        '<div class="fx-step">'+esc(step[0])+'</div>'+
+        (liveTimer?'<div class="timer"><div class="t" id="fxTime">'+fmt(seconds)+'</div>'+
+           '<button class="fbtn" id="fxTimer" style="margin-top:8px">▶︎ Start '+label+' timer</button></div>':'')+
+        (longWait?'<div class="timer">⏳ This part takes '+esc(x.wait||"a while")+'. Leave it set up and come back later — your progress is saved.</div>':'')+
+      '</div>'+
+      '<div class="fx-nav">'+
+        '<button class="fbtn ghost" id="fxPrev" '+(idx===0?'disabled style="opacity:.4"':'')+'>← Back</button>'+
+        '<div class="fx-dots">'+dots+'</div>'+
+        (idx<x.steps.length-1?'<button class="fbtn" id="fxNext">Next →</button>':'<button class="fbtn" id="fxDone">✅ Done!</button>')+
+      '</div>'+
+    '</div>';
+    byId("fxClose").addEventListener("click",function(){stop();root.innerHTML=""});
+    byId("fxPrev").addEventListener("click",function(){if(idx>0){idx--;draw()}});
+    if(byId("fxNext"))byId("fxNext").addEventListener("click",function(){idx++;draw()});
+    if(byId("fxDone"))byId("fxDone").addEventListener("click",function(){stop();root.innerHTML=""; if(!state.completed[x.id]){toggleDone(x.id)} go("detail",{id:x.id})});
+    if(byId("fxTimer")){
+      var remain=seconds;
+      byId("fxTimer").addEventListener("click",function(){
+        if(timerInt){stop(); byId("fxTimer").textContent="▶︎ Resume"; return;}
+        byId("fxTimer").textContent="⏸ Pause";
+        timerInt=setInterval(function(){
+          remain--; byId("fxTime").textContent=fmt(remain);
+          if(remain<=0){stop(); byId("fxTime").textContent="⏰ Time!"; if(navigator.vibrate)navigator.vibrate([200,100,200]); byId("fxTimer").textContent="✓ Finished"}
+        },1000);
+      });
+    }
+  }
+  draw();
+}
+function fmt(s){s=Math.max(0,s|0);var m=Math.floor(s/60),ss=s%60;return (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss}
+
+/* ============================ PROGRESS ============================ */
+function checkAchievements(){
+  var s=stats();
+  ACHIEVEMENTS.forEach(function(a){if(!state.unlocked[a.id] && a.test(s)){state.unlocked[a.id]=new Date().toISOString().slice(0,10)}});
+}
+function renderProgress(){
+  checkAchievements(); save();
+  var s=stats(); var pct=Math.round(s.n/EXPERIMENTS.length*100);
+  byId("progHeadline").textContent=s.n+" of "+EXPERIMENTS.length+" experiments done";
+  byId("progPct").textContent=pct+"%";
+  byId("progBar").style.width=pct+"%";
+  var next=ACHIEVEMENTS.filter(function(a){return !state.unlocked[a.id]})[0];
+  byId("nextMilestone").textContent=next?("Next badge: "+next.title+" — "+next.desc):"🎉 Every badge unlocked!";
+  var g=byId("achGrid"); g.innerHTML="";
+  ACHIEVEMENTS.forEach(function(a){
+    var got=!!state.unlocked[a.id];
+    g.appendChild(el('<div class="ach '+(got?'':'locked')+'"><div class="medal">'+a.medal+'</div><h4>'+esc(a.title)+'</h4>'+
+      '<small>'+(got?esc(a.desc):"🔒 "+esc(a.desc))+'</small></div>'));
+  });
+}
+
+/* ============================ CERTIFICATE ============================ */
+function renderCertificate(){
+  var sel=byId("certAch"); sel.innerHTML="";
+  var unlocked=ACHIEVEMENTS.filter(function(a){return state.unlocked[a.id]});
+  if(unlocked.length===0){sel.appendChild(el('<option value="">Finish an experiment to unlock one</option>'))}
+  unlocked.forEach(function(a){sel.appendChild(el('<option value="'+a.id+'">'+esc(a.title)+'</option>'))});
+  if(!byId("certName").value)byId("certName").value=state.childName;
+  drawCert();
+  ["certName","certAch","certAdult"].forEach(function(id){byId(id).oninput=drawCert; byId(id).onchange=drawCert});
+  byId("printCertBtn").onclick=function(){window.print()};
+}
+function drawCert(){
+  var name=byId("certName").value||state.childName||"Young Scientist";
+  var aId=byId("certAch").value; var a=ACHIEVEMENTS.filter(function(x){return x.id===aId})[0];
+  var adult=byId("certAdult").value;
+  byId("certPreview").innerHTML=
+   '<div class="cert"><div class="ribbon">🎖️</div><h2>Certificate of Science</h2>'+
+   '<p>This certifies that</p><div class="who">'+esc(name)+'</div>'+
+   '<p>earned the badge</p><div style="font-size:1.3rem;font-weight:900;margin:6px 0">'+(a?a.medal+" "+esc(a.title):"—")+'</div>'+
+   '<p style="color:var(--ink-soft)">'+new Date().toLocaleDateString()+'</p>'+
+   '<div class="sig"><div>'+(adult?esc(adult):"Grown-up helper")+'</div><div>Science Lab</div></div></div>';
+}
+
+/* ============================ PRINTABLES ============================ */
+document.querySelectorAll("[data-print]").forEach(function(b){
+  b.addEventListener("click",function(){renderPrint(b.dataset.print); setTimeout(function(){window.print()},60)});
+});
+function renderPrint(kind){
+  var area=byId("printArea"); var h="";
+  if(kind==="checklist"){
+    h='<h2>Experiment checklist</h2><table class="checklist-print"><tr><th>#</th><th>Experiment</th><th>Category</th><th>Done</th><th>Date</th></tr>'+
+      EXPERIMENTS.map(function(x){return '<tr><td>'+x.id+'</td><td>'+esc(x.title)+'</td><td>'+esc(x.category)+'</td><td>'+(state.completed[x.id]?"✓":"☐")+'</td><td>'+esc(state.completed[x.id]||"")+'</td></tr>'}).join("")+'</table>';
+  }else if(kind==="equipment"){
+    h='<h2>Equipment checklist</h2><table class="checklist-print"><tr><th>Have it?</th><th>Item</th></tr>'+
+      EQUIPMENT.map(function(i){return '<tr><td>☐</td><td>'+esc(i)+'</td></tr>'}).join("")+'</table>';
+  }else if(kind==="safety"){
+    h='<h2>Science safety rules</h2><ul class="safety-poster" style="font-size:1.1rem">'+GLOBAL_SAFETY.map(function(l){return '<li>• '+esc(l)+'</li>'}).join("")+'</ul>';
+  }else if(kind==="observation"){
+    h='<h2>Observation sheet</h2><p>Experiment: ______________________  Date: __________</p>'+
+      '<p><strong>My prediction:</strong></p><div style="border:1px solid #999;height:70px"></div>'+
+      '<p><strong>What happened:</strong></p><div style="border:1px solid #999;height:120px"></div>'+
+      '<p><strong>Why I think it happened:</strong></p><div style="border:1px solid #999;height:90px"></div>';
+  }
+  area.innerHTML='<div class="panel">'+h+'<button class="btn btn-gold no-print" style="margin-top:12px" onclick="window.print()">🖨️ Print now</button></div>';
+}
+
+/* ============================ SETTINGS ============================ */
+function renderSettings(){
+  byId("setName").value=state.childName;
+  byId("density").value=state.settings.density;
+  var sl=byId("safetyList"); sl.innerHTML=GLOBAL_SAFETY.map(function(l){return '<li>'+esc(l)+'</li>'}).join("");
+}
+function applyDensity(){document.body.classList.toggle("compact",state.settings.density==="compact")}
+
+/* ============================ WIRING ============================ */
+byId("nameInput").addEventListener("input",function(e){state.childName=e.target.value; save(); byId("greeting").textContent=state.childName?("Hi "+state.childName+" 👩‍🔬"):"Ready to experiment?"});
+byId("setName").addEventListener("input",function(e){state.childName=e.target.value; save()});
+byId("density").addEventListener("change",function(e){state.settings.density=e.target.value; applyDensity(); save()});
+byId("surpriseBtn").addEventListener("click",function(){
+  var pool=EXPERIMENTS.filter(function(x){return !state.completed[x.id]}); if(pool.length===0)pool=EXPERIMENTS;
+  go("detail",{id:pool[Math.floor(Math.random()*pool.length)].id});
+});
+byId("continueBtn").addEventListener("click",function(){go("detail",{id:state.lastId||EXPERIMENTS[0].id})});
+byId("exportBtn").addEventListener("click",function(){
+  var blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a"); a.href=url; a.download="science-lab-progress.json"; a.click(); URL.revokeObjectURL(url);
+});
+byId("importBtn").addEventListener("click",function(){byId("importFile").click()});
+byId("importFile").addEventListener("change",function(e){
+  var f=e.target.files[0]; if(!f)return; var r=new FileReader();
+  r.onload=function(){try{var p=JSON.parse(r.result); if(p&&typeof p==="object"){state=Object.assign(clone(DEFAULTS),p,{settings:Object.assign({},DEFAULTS.settings,p.settings||{})}); save(); applyDensity(); go("progress"); alert("Progress restored.")}}catch(err){alert("That file couldn't be read.")}};
+  r.readAsText(f);
+});
+byId("resetBtn").addEventListener("click",function(){
+  if(confirm("Reset ALL progress, badges and notes? This can't be undone.")){state=clone(DEFAULTS); save(); applyDensity(); go("home")}
+});
+
+/* ============================ BOOT ============================ */
+applyDensity();
+checkAchievements(); save();
+go("home");
+
+/* ============================ PWA (installable + offline) ============================ */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",function(){
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  });
+}
+</script>
+</body>
 </html>

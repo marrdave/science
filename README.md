@@ -5,72 +5,65 @@ UNGLINGA and other brands). Built because the original booklet was lost. It is a
 companion, not the official manufacturer manual** — always have an adult nearby, age 8+.
 
 Ships with **17 fully-written experiments** the kit genuinely supports, across Chemistry, Physics,
-Earth Science and Life & Plants. It's a PWA, so it installs to a phone/tablet home screen and works
-with no signal. Progress (completed experiments, favourites, notes, badges) is saved on the device.
+Earth Science and Life & Plants. It's a single self-contained HTML file plus a service worker, so
+it's a PWA: it installs to a phone/tablet home screen and works with no signal. Progress (completed
+experiments, favourites, notes, badges) is saved on the device.
+
+## What's in it
+
+- Browse / search / filter 17 experiments with difficulty, timings and supervision level
+- **Step-by-step focus mode** with live countdown timers for the waiting steps
+- Progress tracking with 12 badges and per-category completion
+- **Certificate** generator (print / save as PDF) and **printables**: experiment checklist,
+  equipment checklist, safety poster, observation sheet
+- Export / import / reset progress from **More (Settings)**
 
 ## Run it locally
 
-```bash
-npm install
-npm run dev      # opens http://localhost:5173
-```
-
-Build a production copy:
+No build step — it's a static site. Serve the folder any way you like, e.g.:
 
 ```bash
-npm run build    # outputs to dist/
-npm run preview  # serve the built copy locally
+python3 -m http.server 5173   # then open http://localhost:5173
 ```
+
+(Opening `index.html` directly works too, but the service worker only registers over http/https.)
 
 ## Deploy to Vercel
 
-1. Push this folder to a Git repo (GitHub/GitLab/Bitbucket).
-2. In Vercel: **New Project → import the repo.** It auto-detects Vite —
-   build command `npm run build`, output directory `dist`. No env vars needed.
-3. Deploy. That URL is your app; open it on the tablet and **Add to Home Screen**.
-
-Because `registerType: "autoUpdate"` is set, when you push new experiments and the tablet is online,
-it quietly fetches the update and uses it on the next launch.
-
-## Add or edit an experiment (the whole point of it growing)
-
-1. Open `src/data/experiments.ts`.
-2. Copy an existing object, give it the next `id` and a unique `slug`, and fill in the fields
-   (see the `Experiment` type in `src/types.ts`).
-3. Keep amounts conservative. If you're estimating a quantity, mark it `approx: true` so it renders
-   with an "(approx)" note. For anything you can't verify, leave it out rather than guess.
-4. Commit and push. The library, the "X of N" counter, and the milestone badges all update
-   themselves — the top "Master Scientist" badge automatically re-pegs to the new total.
-
-Categories are fixed to: `Chemistry`, `Physics`, `Earth Science`, `Life & Plants`. Add a new one in
-`src/types.ts` (the `Category` union) and give it an accent colour in `src/styles.css` if you need
-another.
-
-## How progress is stored
-
-- Saved in the browser's `localStorage` on that one device — no accounts, no server, no tracking.
-- It does **not** sync between devices. One tablet = one shared progress list.
-- Clearing that browser's data wipes progress. Use **Settings → Export progress** to keep a backup
-  JSON, and **Import progress** to restore it.
-- To move to synced, multi-child progress later, swap `src/lib/storage.ts` for a small backend
-  (e.g. Supabase). Nothing else has to change — the app only ever touches `loadState`/`saveState`.
-
-## Safety
-
-Every experiment carries a supervision level, safety notes, and cleanup steps. General rules baked
-into the app: adult supervision, goggles for reactions, never taste anything, never seal a fizzing
-container, and keep water beads away from small children and pets. Use kit chemicals only while
-sealed and clearly labelled.
+The repo is a static site with no build. `vercel.json` sets `framework: null`, `buildCommand: null`
+and `outputDirectory: "."`, so Vercel just serves the files. Push to the connected repo and it
+deploys automatically; open the URL on the tablet and **Add to Home Screen**.
 
 ## Project map
 
 ```
-src/
-  data/experiments.ts   ← the content (edit this to grow the library)
-  data/meta.ts          ← achievements + equipment checklist
-  types.ts              ← the data shapes
-  lib/storage.ts        ← localStorage load/save (swap for a backend later)
-  components/           ← Tile, Detail (focus-mode steps + timers), shared bits
-  App.tsx               ← state, views, navigation
-  styles.css            ← the design system
+index.html            ← the whole app: markup, styles, data (EXPERIMENTS) and logic
+manifest.webmanifest  ← PWA metadata (name, icons, colours)
+sw.js                 ← service worker: precache + offline (bump CACHE to force an update)
+icons/                ← app icons (192 / 512)
+favicon.svg
+vercel.json           ← static-hosting config (no build)
 ```
+
+## Add or edit an experiment
+
+1. Open `index.html` and find the `EXPERIMENTS` array in the `<script>`.
+2. Copy an existing object, give it the next `id` and a unique `slug`, and fill in the fields
+   (`kit` / `home` items are `[name, amount]`; home items take a third `true` to render "(approx)").
+   Step entries are `[text, seconds]` — `seconds` drives the focus-mode timer (`0` for no timer).
+3. Keep amounts conservative. Mark anything you're estimating as approx rather than guessing; leave
+   out anything you can't verify.
+4. Bump `CACHE` in `sw.js` (e.g. `science-lab-v2`) so tablets fetch the new version, then push.
+
+## How progress is stored
+
+- Saved in the browser's `localStorage` on that one device (key `scienceLabState_v2`) — no accounts,
+  no server, no tracking. It does **not** sync between devices.
+- Use **More → Back up progress** for a JSON backup and **Restore progress** to move it to another
+  device. Clearing that browser's data wipes progress.
+
+## Safety
+
+Every experiment carries a supervision level, safety notes and cleanup steps. General rules baked in:
+adult supervision, safety glasses for reactions, never taste anything, never seal a fizzing
+container, and keep water beads away from small children and pets.
