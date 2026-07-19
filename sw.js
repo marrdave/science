@@ -1,6 +1,6 @@
 /* Science Kit Companion — service worker.
    Bump CACHE when you change the app so tablets fetch the new version. */
-var CACHE = "science-lab-v2";
+var CACHE = "science-lab-v3";
 var ASSETS = [
   "./",
   "./index.html",

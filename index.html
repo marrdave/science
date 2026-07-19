@@ -70,6 +70,17 @@ input,select{font-family:inherit; font-size:1rem}
 .namebox input{flex:1; min-width:160px; border:2px solid rgba(255,255,255,.5); background:rgba(255,255,255,.16);
   color:#fff; border-radius:12px; padding:10px 12px; font-weight:700}
 .namebox input::placeholder{color:rgba(255,255,255,.8)}
+.who-switch{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px}
+.who-pill{border:2px solid rgba(255,255,255,.5); background:rgba(255,255,255,.14); color:#fff; border-radius:999px;
+  padding:8px 14px; font-weight:800; font-size:.85rem}
+.who-pill.on{background:#fff; color:var(--chem); border-color:#fff}
+.who-pill.add{border-style:dashed}
+.sci-row{display:flex; gap:10px; align-items:center; margin:8px 0; flex-wrap:wrap}
+.sci-name{flex:1; min-width:140px; border:2px solid var(--line); border-radius:12px; padding:10px 12px; font-weight:700}
+.sci-stat{font-weight:900; color:var(--ink-soft); font-size:.85rem}
+.sci-active{border-radius:12px; padding:9px 12px; font-weight:800; font-size:.82rem; border:1px solid var(--line); background:var(--card)}
+.sci-active.on{background:var(--life); color:#fff; border-color:var(--life)}
+.sci-del{border-radius:12px; padding:9px 11px; border:1px solid var(--line); background:var(--card); color:var(--danger)}
 
 .cat-progress{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:16px}
 .cat-card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:14px; box-shadow:var(--shadow)}
@@ -244,8 +255,9 @@ nav.bottom button[aria-current="true"]{color:var(--chem)}
       <div class="hero-stats">
         <div class="big"><span id="doneCount">0</span> <span style="opacity:.7">/ <span id="totalCount">17</span></span></div>
         <div class="sub">experiments completed</div>
+        <div class="who-switch no-print" id="whoSwitch"></div>
         <div class="namebox no-print">
-          <input id="nameInput" placeholder="Type the scientist's name" aria-label="Scientist's name" maxlength="40">
+          <input id="nameInput" placeholder="Name this scientist" aria-label="Scientist's name" maxlength="40">
         </div>
       </div>
     </div>
@@ -323,8 +335,10 @@ nav.bottom button[aria-current="true"]{color:var(--chem)}
 <section id="settings" class="view hidden">
   <div class="section-title" style="margin-top:14px">Settings</div>
   <div class="panel">
-    <div class="field"><label for="setName">Scientist's name</label><input id="setName" placeholder="Name"></div>
-    <div class="field"><label for="density">Display</label>
+    <h3>👩‍🔬 Scientists</h3>
+    <p style="color:var(--ink-soft); font-weight:600; margin-top:0">Add one for each child — each scientist keeps their own progress, badges and notes. Switch between them here or on the Home screen.</p>
+    <div id="scientistManager"></div>
+    <div class="field" style="margin-top:16px"><label for="density">Display</label>
       <select id="density"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select>
     </div>
   </div>
@@ -813,16 +827,45 @@ var CATS=["Chemistry","Physics","Earth Science","Life & Plants"];
 var CAT_KEY={"Chemistry":"Chemistry","Physics":"Physics","Earth Science":"Earth","Life & Plants":"Life"};
 var CAT_COLOR={"Chemistry":"var(--chem)","Physics":"var(--phys)","Earth Science":"var(--earth)","Life & Plants":"var(--life)"};
 
-/* ============================ STATE ============================ */
-var KEY="scienceLabState_v2";
-var DEFAULTS={version:2,childName:"",completed:{},favourites:[],notes:{},unlocked:{},lastId:null,settings:{density:"comfortable"}};
-var state=load();
-function load(){try{var raw=localStorage.getItem(KEY);if(!raw)return clone(DEFAULTS);var p=JSON.parse(raw);
-  if(!p||typeof p!=="object")return clone(DEFAULTS);
-  return Object.assign(clone(DEFAULTS),p,{settings:Object.assign({},DEFAULTS.settings,p.settings||{})});
- }catch(e){return clone(DEFAULTS)}}
+/* ============================ STATE (multi-scientist) ============================ */
+// store = { version, activeId, order:[ids], profiles:{id:{childName,completed,...}}, settings }
+// `state` always points at the ACTIVE scientist's profile, so the rest of the app
+// keeps using state.completed / state.childName / etc. unchanged.
+var KEY="scienceLabState_v3";
+var OLDKEY="scienceLabState_v2";
 function clone(o){return JSON.parse(JSON.stringify(o))}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+function newProfile(name){return {id:"s"+Date.now()+Math.floor(Math.random()*1000),childName:name||"",completed:{},favourites:[],notes:{},unlocked:{},lastId:null};}
+function freshStore(){var a=newProfile(""),b=newProfile("");var pr={};pr[a.id]=a;pr[b.id]=b;
+  return {version:3,activeId:a.id,order:[a.id,b.id],profiles:pr,settings:{density:"comfortable"}};}
+function migrateV2(p){var prof=newProfile(p.childName||"");
+  prof.completed=p.completed||{};prof.favourites=p.favourites||[];prof.notes=p.notes||{};prof.unlocked=p.unlocked||{};prof.lastId=p.lastId||null;
+  var b=newProfile("");var pr={};pr[prof.id]=prof;pr[b.id]=b;
+  return {version:3,activeId:prof.id,order:[prof.id,b.id],profiles:pr,settings:{density:(p.settings&&p.settings.density)||"comfortable"}};}
+function normalizeStore(s){
+  if(!s.settings)s.settings={density:"comfortable"};
+  if(!s.order||!s.order.length)s.order=Object.keys(s.profiles);
+  s.order.forEach(function(id){var pr=s.profiles[id]; if(pr){pr.completed=pr.completed||{};pr.favourites=pr.favourites||[];pr.notes=pr.notes||{};pr.unlocked=pr.unlocked||{};if(!("childName" in pr))pr.childName="";}});
+  return s;
+}
+function loadStore(){
+  try{var raw=localStorage.getItem(KEY); if(raw){var s=JSON.parse(raw); if(s&&s.profiles&&s.activeId&&s.profiles[s.activeId])return normalizeStore(s);}}catch(e){}
+  try{var old=localStorage.getItem(OLDKEY); if(old){var p=JSON.parse(old); if(p&&typeof p==="object")return migrateV2(p);}}catch(e){}
+  return freshStore();
+}
+var store=loadStore();
+var state=store.profiles[store.activeId];
+function save(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}}
+function profileList(){return store.order.map(function(id){return store.profiles[id]}).filter(Boolean);}
+function profileLabel(p){var i=store.order.indexOf(p.id); return p.childName||("Scientist "+(i+1));}
+function switchProfile(id){if(store.profiles[id]){store.activeId=id;state=store.profiles[id];save();}}
+function addProfile(name){var p=newProfile(name||"");store.profiles[p.id]=p;store.order.push(p.id);store.activeId=p.id;state=p;save();return p;}
+function removeProfile(id){
+  if(store.order.length<=1)return;
+  delete store.profiles[id];
+  store.order=store.order.filter(function(x){return x!==id});
+  if(store.activeId===id){store.activeId=store.order[0];state=store.profiles[store.activeId];}
+  save();
+}
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function byId(id){return document.getElementById(id)}
 function el(html){var t=document.createElement("template");t.innerHTML=html.trim();return t.content.firstElementChild}
@@ -867,6 +910,7 @@ function renderHome(){
   var fill=byId("beakerFill"); fill.setAttribute("height",fillH); fill.setAttribute("y",120-fillH);
   byId("greeting").textContent = state.childName ? ("Hi "+state.childName+" 👩‍🔬") : "Ready to experiment?";
   byId("nameInput").value=state.childName;
+  renderWhoSwitch();
   updateMini(s,pct);
 
   var cp=byId("catProgress"); cp.innerHTML="";
@@ -894,7 +938,43 @@ function renderHome(){
   if(hg.children.length===0){hg.appendChild(el('<div class="panel">🎉 Every experiment done — you\'re a Master Scientist!</div>'))}
 }
 function updateMini(s,pct){
-  byId("miniProgress").innerHTML='🧪 <span>'+s.n+'/'+EXPERIMENTS.length+'</span>';
+  byId("miniProgress").innerHTML='🧪 <span>'+esc(profileLabel(state))+' · '+s.n+'/'+EXPERIMENTS.length+'</span>';
+}
+function renderWhoSwitch(){
+  var w=byId("whoSwitch"); if(!w)return; w.innerHTML="";
+  profileList().forEach(function(p){
+    var active=p.id===store.activeId;
+    var b=el('<button class="who-pill'+(active?' on':'')+'">'+esc(profileLabel(p))+'</button>');
+    b.addEventListener("click",function(){switchProfile(p.id); renderHome();});
+    w.appendChild(b);
+  });
+  var add=el('<button class="who-pill add">＋ Add scientist</button>');
+  add.addEventListener("click",function(){addProfile(""); renderHome(); byId("nameInput").focus();});
+  w.appendChild(add);
+}
+function renderScientists(){
+  var m=byId("scientistManager"); if(!m)return; m.innerHTML="";
+  profileList().forEach(function(p){
+    var row=el('<div class="sci-row"></div>');
+    var inp=el('<input class="sci-name" maxlength="40" placeholder="Scientist name">');
+    inp.value=p.childName;
+    inp.addEventListener("input",function(e){p.childName=e.target.value; save();});
+    row.appendChild(inp);
+    var done=EXPERIMENTS.filter(function(x){return p.completed[x.id]}).length;
+    row.appendChild(el('<span class="sci-stat">'+done+'/'+EXPERIMENTS.length+'</span>'));
+    var act=el('<button class="sci-active'+(p.id===store.activeId?' on':'')+'">'+(p.id===store.activeId?'✓ Active':'Make active')+'</button>');
+    act.addEventListener("click",function(){switchProfile(p.id); renderScientists();});
+    row.appendChild(act);
+    if(profileList().length>1){
+      var del=el('<button class="sci-del" title="Remove scientist">🗑️</button>');
+      del.addEventListener("click",function(){if(confirm("Remove "+profileLabel(p)+" and all their progress? This can't be undone.")){removeProfile(p.id); renderScientists();}});
+      row.appendChild(del);
+    }
+    m.appendChild(row);
+  });
+  var add=el('<button class="btn btn-primary" style="margin-top:6px">＋ Add scientist</button>');
+  add.addEventListener("click",function(){addProfile(""); renderScientists();});
+  m.appendChild(add);
 }
 
 /* ============================ CARD ============================ */
@@ -1143,7 +1223,7 @@ document.querySelectorAll("[data-print]").forEach(function(b){
 function renderPrint(kind){
   var area=byId("printArea"); var h="";
   if(kind==="checklist"){
-    h='<h2>Experiment checklist</h2><table class="checklist-print"><tr><th>#</th><th>Experiment</th><th>Category</th><th>Done</th><th>Date</th></tr>'+
+    h='<h2>Experiment checklist — '+esc(profileLabel(state))+'</h2><table class="checklist-print"><tr><th>#</th><th>Experiment</th><th>Category</th><th>Done</th><th>Date</th></tr>'+
       EXPERIMENTS.map(function(x){return '<tr><td>'+x.id+'</td><td>'+esc(x.title)+'</td><td>'+esc(x.category)+'</td><td>'+(state.completed[x.id]?"✓":"☐")+'</td><td>'+esc(state.completed[x.id]||"")+'</td></tr>'}).join("")+'</table>';
   }else if(kind==="equipment"){
     h='<h2>Equipment checklist</h2><table class="checklist-print"><tr><th>Have it?</th><th>Item</th></tr>'+
@@ -1161,34 +1241,39 @@ function renderPrint(kind){
 
 /* ============================ SETTINGS ============================ */
 function renderSettings(){
-  byId("setName").value=state.childName;
-  byId("density").value=state.settings.density;
+  renderScientists();
+  byId("density").value=store.settings.density;
   var sl=byId("safetyList"); sl.innerHTML=GLOBAL_SAFETY.map(function(l){return '<li>'+esc(l)+'</li>'}).join("");
 }
-function applyDensity(){document.body.classList.toggle("compact",state.settings.density==="compact")}
+function applyDensity(){document.body.classList.toggle("compact",store.settings.density==="compact")}
 
 /* ============================ WIRING ============================ */
-byId("nameInput").addEventListener("input",function(e){state.childName=e.target.value; save(); byId("greeting").textContent=state.childName?("Hi "+state.childName+" 👩‍🔬"):"Ready to experiment?"});
-byId("setName").addEventListener("input",function(e){state.childName=e.target.value; save()});
-byId("density").addEventListener("change",function(e){state.settings.density=e.target.value; applyDensity(); save()});
+byId("nameInput").addEventListener("input",function(e){state.childName=e.target.value; save(); byId("greeting").textContent=state.childName?("Hi "+state.childName+" 👩‍🔬"):"Ready to experiment?"; renderWhoSwitch();});
+byId("density").addEventListener("change",function(e){store.settings.density=e.target.value; applyDensity(); save()});
 byId("surpriseBtn").addEventListener("click",function(){
   var pool=EXPERIMENTS.filter(function(x){return !state.completed[x.id]}); if(pool.length===0)pool=EXPERIMENTS;
   go("detail",{id:pool[Math.floor(Math.random()*pool.length)].id});
 });
 byId("continueBtn").addEventListener("click",function(){go("detail",{id:state.lastId||EXPERIMENTS[0].id})});
 byId("exportBtn").addEventListener("click",function(){
-  var blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  var blob=new Blob([JSON.stringify(store,null,2)],{type:"application/json"});
   var url=URL.createObjectURL(blob);
   var a=document.createElement("a"); a.href=url; a.download="science-lab-progress.json"; a.click(); URL.revokeObjectURL(url);
 });
 byId("importBtn").addEventListener("click",function(){byId("importFile").click()});
 byId("importFile").addEventListener("change",function(e){
   var f=e.target.files[0]; if(!f)return; var r=new FileReader();
-  r.onload=function(){try{var p=JSON.parse(r.result); if(p&&typeof p==="object"){state=Object.assign(clone(DEFAULTS),p,{settings:Object.assign({},DEFAULTS.settings,p.settings||{})}); save(); applyDensity(); go("progress"); alert("Progress restored.")}}catch(err){alert("That file couldn't be read.")}};
+  r.onload=function(){try{
+    var p=JSON.parse(r.result);
+    if(p&&p.profiles&&p.activeId){ store=normalizeStore(p); }           // full multi-scientist backup
+    else if(p&&typeof p==="object"){ store=migrateV2(p); }              // older single-scientist backup
+    else throw 0;
+    state=store.profiles[store.activeId]; save(); applyDensity(); go("progress"); alert("Progress restored.");
+  }catch(err){alert("That file couldn't be read.")}};
   r.readAsText(f);
 });
 byId("resetBtn").addEventListener("click",function(){
-  if(confirm("Reset ALL progress, badges and notes? This can't be undone.")){state=clone(DEFAULTS); save(); applyDensity(); go("home")}
+  if(confirm("Reset ALL scientists, progress, badges and notes? This can't be undone.")){store=freshStore(); state=store.profiles[store.activeId]; save(); applyDensity(); go("home")}
 });
 
 /* ============================ BOOT ============================ */
