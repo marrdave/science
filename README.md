@@ -55,12 +55,33 @@ vercel.json           ← static-hosting config (no build)
    out anything you can't verify.
 4. Bump `CACHE` in `sw.js` (e.g. `science-lab-v2`) so tablets fetch the new version, then push.
 
+## Scientists (profiles)
+
+Each child is a "scientist" with their own progress, badges and notes. The app ships with two
+(Percy and Bernie). Switch between them on the Home hero or manage them under **More → Scientists**
+(rename / add / remove). Locally, everything lives in `localStorage` key `scienceLabState_v3`.
+
 ## How progress is stored
 
-- Saved in the browser's `localStorage` on that one device (key `scienceLabState_v2`) — no accounts,
-  no server, no tracking. It does **not** sync between devices.
-- Use **More → Back up progress** for a JSON backup and **Restore progress** to move it to another
-  device. Clearing that browser's data wipes progress.
+- **Offline / on one device:** `localStorage` — no account needed. Works with no signal.
+- **Cloud sync (optional, for multi-device):** signing in under **More → Cloud sync** stores the
+  scientists' progress in Supabase so it appears on any device. See below.
+- Use **More → Back up progress** for a JSON backup and **Restore progress** to move it manually.
+
+## Cloud sync (Supabase)
+
+Lets two parents each log in (email + password) and see the same scientists on any device.
+
+- Backend: Supabase project **Science Kit** (`ginyinihbtcyqbicjssx`). No SDK — the app talks to the
+  Supabase Auth + REST endpoints directly with `fetch`, using the publishable key (embedded in
+  `index.html`, safe to ship; Row Level Security protects the data).
+- Data model: a `households` row (with a shareable `join_code`), `household_members` (the parents),
+  and `scientists` (name + a `data` jsonb blob of progress). RLS: you only see a household you're a
+  member of. `create_household` / `join_household` are `SECURITY DEFINER` RPCs.
+- Flow: parent 1 signs up → **Create our household** (uploads Percy & Bernie, shows a `LAB-XXXXX`
+  code) → parent 2 signs up → **Join** with that code. Devices push on change (debounced) and pull
+  on focus + every 25s; merges union completed/badges so nothing is lost.
+- Migrations live in the Supabase project (`science_kit_households`, `science_kit_harden_functions`).
 
 ## Safety
 

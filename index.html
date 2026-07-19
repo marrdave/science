@@ -334,6 +334,7 @@ nav.bottom button[aria-current="true"]{color:var(--chem)}
 <!-- SETTINGS -->
 <section id="settings" class="view hidden">
   <div class="section-title" style="margin-top:14px">Settings</div>
+  <div class="panel" id="accountPanel"></div>
   <div class="panel">
     <h3>👩‍🔬 Scientists</h3>
     <p style="color:var(--ink-soft); font-weight:600; margin-top:0">Add one for each child — each scientist keeps their own progress, badges and notes. Switch between them here or on the Home screen.</p>
@@ -1011,13 +1012,17 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}}
 function profileList(){return store.order.map(function(id){return store.profiles[id]}).filter(Boolean);}
 function profileLabel(p){var i=store.order.indexOf(p.id); return p.childName||("Scientist "+(i+1));}
 function switchProfile(id){if(store.profiles[id]){store.activeId=id;state=store.profiles[id];save();}}
-function addProfile(name){var p=newProfile(name||"");store.profiles[p.id]=p;store.order.push(p.id);store.activeId=p.id;state=p;save();return p;}
+function addProfile(name){var p=newProfile(name||"");store.profiles[p.id]=p;store.order.push(p.id);store.activeId=p.id;state=p;save();
+  if(typeof connected==="function"&&connected())cloudPushProfile(p,store.order.indexOf(p.id));
+  return p;}
 function removeProfile(id){
   if(store.order.length<=1)return;
+  var rid=store.profiles[id]&&store.profiles[id].remoteId;
   delete store.profiles[id];
   store.order=store.order.filter(function(x){return x!==id});
   if(store.activeId===id){store.activeId=store.order[0];state=store.profiles[store.activeId];}
   save();
+  if(typeof connected==="function"&&connected())cloudDeleteProfile(rid);
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function byId(id){return document.getElementById(id)}
@@ -1038,7 +1043,9 @@ function stars(d){var s="";for(var i=1;i<=5;i++)s+= i<=d?"★":"";return s;}
 
 /* ============================ ROUTER ============================ */
 var VIEWS=["home","experiments","detail","progress","certificate","printables","settings"];
+var currentView="home";
 function go(view,opts){
+  currentView=view;
   VIEWS.forEach(function(v){byId(v).classList.toggle("hidden",v!==view)});
   document.querySelectorAll("#nav button").forEach(function(b){
     b.setAttribute("aria-current", b.dataset.goto===view || (view==="detail"&&b.dataset.goto==="experiments") ? "true":"false");
@@ -1091,7 +1098,7 @@ function renderHome(){
   if(hg.children.length===0){hg.appendChild(el('<div class="panel">🎉 Every experiment done — you\'re a Master Scientist!</div>'))}
 }
 function updateMini(s,pct){
-  byId("miniProgress").innerHTML='🧪 <span>'+esc(profileLabel(state))+' · '+s.n+'/'+EXPERIMENTS.length+'</span>';
+  byId("miniProgress").innerHTML=(connected()?'☁️ ':'🧪 ')+'<span>'+esc(profileLabel(state))+' · '+s.n+'/'+EXPERIMENTS.length+'</span>';
 }
 function renderWhoSwitch(){
   var w=byId("whoSwitch"); if(!w)return; w.innerHTML="";
@@ -1111,7 +1118,7 @@ function renderScientists(){
     var row=el('<div class="sci-row"></div>');
     var inp=el('<input class="sci-name" maxlength="40" placeholder="Scientist name">');
     inp.value=p.childName;
-    inp.addEventListener("input",function(e){p.childName=e.target.value; save();});
+    inp.addEventListener("input",function(e){p.childName=e.target.value; save(); markDirty(p.id);});
     row.appendChild(inp);
     var done=EXPERIMENTS.filter(function(x){return p.completed[x.id]}).length;
     row.appendChild(el('<span class="sci-stat">'+done+'/'+EXPERIMENTS.length+'</span>'));
@@ -1256,7 +1263,7 @@ function renderDetail(id){
   byId("focusBtn").addEventListener("click",function(){openFocus(x)});
   byId("favBtn").addEventListener("click",function(){toggleFav(x.id); renderDetail(x.id)});
   byId("printExpBtn").addEventListener("click",function(){window.print()});
-  byId("notesArea").addEventListener("input",function(e){state.notes[x.id]=e.target.value; save()});
+  byId("notesArea").addEventListener("input",function(e){state.notes[x.id]=e.target.value; save(); markDirty(store.activeId);});
   if(byId("prevBtn"))byId("prevBtn").addEventListener("click",function(){go("detail",{id:prevOf(x).id})});
   if(byId("nextBtn"))byId("nextBtn").addEventListener("click",function(){go("detail",{id:nextOf(x).id})});
 }
@@ -1273,9 +1280,9 @@ function nextOf(x){var i=EXPERIMENTS.indexOf(x);return i<EXPERIMENTS.length-1?EX
 function toggleDone(id){
   if(state.completed[id])delete state.completed[id];
   else state.completed[id]=new Date().toISOString().slice(0,10);
-  checkAchievements(); save();
+  checkAchievements(); save(); markDirty(store.activeId);
 }
-function toggleFav(id){var i=state.favourites.indexOf(id); if(i>=0)state.favourites.splice(i,1); else state.favourites.push(id); save();}
+function toggleFav(id){var i=state.favourites.indexOf(id); if(i>=0)state.favourites.splice(i,1); else state.favourites.push(id); save(); markDirty(store.activeId);}
 
 /* ============================ FOCUS MODE ============================ */
 var timerInt=null;
@@ -1394,14 +1401,168 @@ function renderPrint(kind){
 
 /* ============================ SETTINGS ============================ */
 function renderSettings(){
+  renderAccount();
   renderScientists();
   byId("density").value=store.settings.density;
   var sl=byId("safetyList"); sl.innerHTML=GLOBAL_SAFETY.map(function(l){return '<li>'+esc(l)+'</li>'}).join("");
 }
 function applyDensity(){document.body.classList.toggle("compact",store.settings.density==="compact")}
 
+/* ============================ CLOUD SYNC (Supabase) ============================ */
+var CLOUD={url:"https://ginyinihbtcyqbicjssx.supabase.co",key:"sb_publishable_plOzyk0edsY5PiMSlX0lAw_djpfVJVQ"};
+var AUTHKEY="scienceLabAuth_v1";
+var auth=loadAuth();
+function loadAuth(){try{var r=localStorage.getItem(AUTHKEY);return r?JSON.parse(r):null;}catch(e){return null;}}
+function saveAuth(){try{if(auth)localStorage.setItem(AUTHKEY,JSON.stringify(auth));else localStorage.removeItem(AUTHKEY);}catch(e){}}
+function clearAuth(){auth=null;saveAuth();}
+function connected(){return !!(auth&&auth.access_token&&auth.householdId);}
+function signedIn(){return !!(auth&&auth.access_token);}
+function setSession(j){
+  auth=auth||{};
+  auth.access_token=j.access_token; auth.refresh_token=j.refresh_token;
+  auth.expires_at=j.expires_at||(Math.floor(Date.now()/1000)+(j.expires_in||3600));
+  if(j.user){auth.email=j.user.email; auth.uid=j.user.id;}
+  saveAuth();
+}
+function sbHeaders(extra){var h={apikey:CLOUD.key,"Content-Type":"application/json"}; if(auth&&auth.access_token)h.Authorization="Bearer "+auth.access_token; if(extra)for(var k in extra)h[k]=extra[k]; return h;}
+async function sbFetch(path,opts){
+  opts=opts||{}; opts.headers=sbHeaders(opts.headers);
+  var res=await fetch(CLOUD.url+path,opts);
+  if(res.status===401 && auth && auth.refresh_token){
+    if(await authRefresh()){ opts.headers=sbHeaders(opts.headers); res=await fetch(CLOUD.url+path,opts); }
+  }
+  return res;
+}
+async function authRefresh(){
+  try{
+    var res=await fetch(CLOUD.url+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{apikey:CLOUD.key,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:auth.refresh_token})});
+    if(!res.ok){clearAuth();return false;}
+    setSession(await res.json()); return true;
+  }catch(e){return false;}
+}
+async function authLogin(email,pass){
+  var res=await fetch(CLOUD.url+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:CLOUD.key,"Content-Type":"application/json"},body:JSON.stringify({email:email,password:pass})});
+  var j=await res.json(); if(!res.ok)throw new Error(j.error_description||j.msg||j.message||"Login failed");
+  setSession(j); await afterAuth(); return true;
+}
+async function authSignup(email,pass){
+  var res=await fetch(CLOUD.url+"/auth/v1/signup",{method:"POST",headers:{apikey:CLOUD.key,"Content-Type":"application/json"},body:JSON.stringify({email:email,password:pass})});
+  var j=await res.json(); if(!res.ok)throw new Error(j.error_description||j.msg||j.message||"Sign up failed");
+  if(j.access_token){setSession(j); await afterAuth(); return {session:true};}
+  return {session:false};
+}
+function authLogout(){
+  try{fetch(CLOUD.url+"/auth/v1/logout",{method:"POST",headers:sbHeaders()});}catch(e){}
+  clearAuth();
+}
+async function afterAuth(){ await cloudGetHousehold(); if(auth&&auth.householdId){ await cloudPull(true); } saveAuth(); }
+async function cloudGetHousehold(){
+  var res=await sbFetch("/rest/v1/households?select=id,name,join_code&limit=1",{method:"GET"});
+  if(res.ok){var rows=await res.json(); if(rows&&rows[0]){auth.householdId=rows[0].id; auth.joinCode=rows[0].join_code; saveAuth();}}
+}
+async function cloudCreateHousehold(name){
+  var res=await sbFetch("/rest/v1/rpc/create_household",{method:"POST",body:JSON.stringify({p_name:name||"Our Lab"})});
+  var j=await res.json(); if(!res.ok)throw new Error(j.message||"Could not create household");
+  var row=Array.isArray(j)?j[0]:j; auth.householdId=row.id; auth.joinCode=row.join_code; saveAuth();
+  var ps=profileList(); for(var i=0;i<ps.length;i++){ await cloudPushProfile(ps[i],i); }
+}
+async function cloudJoin(code){
+  var res=await sbFetch("/rest/v1/rpc/join_household",{method:"POST",body:JSON.stringify({p_code:code})});
+  var j=await res.json(); if(!res.ok)throw new Error(j.message||"Could not join with that code");
+  var row=Array.isArray(j)?j[0]:j; auth.householdId=row.id; auth.joinCode=row.join_code; saveAuth();
+  await cloudPull(true);
+}
+function profileData(p){return {completed:p.completed,favourites:p.favourites,notes:p.notes,unlocked:p.unlocked,lastId:p.lastId};}
+function remoteToProfile(r){var d=r.data||{}; return {id:"s"+r.id,remoteId:r.id,_rev:r.updated_at,childName:r.name||"",
+  completed:d.completed||{},favourites:d.favourites||[],notes:d.notes||{},unlocked:d.unlocked||{},lastId:d.lastId||null};}
+function findByRemote(rid){var l=profileList(); for(var i=0;i<l.length;i++)if(l[i].remoteId===rid)return l[i]; return null;}
+function mergeRemote(p,r){var d=r.data||{};
+  p.childName=r.name||p.childName;
+  var dc=d.completed||{}; for(var k in dc)if(!p.completed[k])p.completed[k]=dc[k];
+  var du=d.unlocked||{}; for(var u in du)if(!p.unlocked[u])p.unlocked[u]=du[u];
+  (d.favourites||[]).forEach(function(f){if(p.favourites.indexOf(f)<0)p.favourites.push(f);});
+  var dn=d.notes||{}; for(var n in dn)if(!p.notes[n])p.notes[n]=dn[n];
+  if(d.lastId)p.lastId=d.lastId; p._rev=r.updated_at;
+}
+async function cloudPull(replace){
+  if(!signedIn()||!auth.householdId)return;
+  var res=await sbFetch("/rest/v1/scientists?select=id,name,position,data,updated_at&order=position",{method:"GET"});
+  if(!res.ok)return; var rows=await res.json();
+  if(replace){
+    if(!rows.length){ var ps=profileList(); for(var i=0;i<ps.length;i++){ await cloudPushProfile(ps[i],i); } return; }
+    var order=[],profiles={}; rows.forEach(function(r){var p=remoteToProfile(r); profiles[p.id]=p; order.push(p.id);});
+    store.profiles=profiles; store.order=order; store.activeId=order[0]; state=store.profiles[store.activeId]; save();
+  } else {
+    var seen={}; rows.forEach(function(r){ seen[r.id]=true; var p=findByRemote(r.id);
+      if(!p){ p=remoteToProfile(r); store.profiles[p.id]=p; store.order.push(p.id); }
+      else if(p._rev!==r.updated_at){ mergeRemote(p,r); } });
+    store.order.slice().forEach(function(id){var p=store.profiles[id]; if(p&&p.remoteId&&!seen[p.remoteId]){delete store.profiles[id]; store.order=store.order.filter(function(x){return x!==id});}});
+    if(!store.profiles[store.activeId])store.activeId=store.order[0];
+    state=store.profiles[store.activeId]; save();
+  }
+  refreshCurrentView();
+}
+async function cloudPushProfile(p,pos){
+  if(!connected())return;
+  var body={name:p.childName||"",data:profileData(p)}; if(typeof pos==="number")body.position=pos;
+  var res;
+  if(p.remoteId){ res=await sbFetch("/rest/v1/scientists?id=eq."+p.remoteId,{method:"PATCH",headers:{Prefer:"return=representation"},body:JSON.stringify(body)}); }
+  else { body.household_id=auth.householdId; res=await sbFetch("/rest/v1/scientists",{method:"POST",headers:{Prefer:"return=representation"},body:JSON.stringify(body)}); }
+  if(res&&res.ok){var arr=await res.json(); var row=Array.isArray(arr)?arr[0]:arr; if(row){p.remoteId=row.id; p._rev=row.updated_at; save();}}
+}
+async function cloudDeleteProfile(rid){ if(!connected()||!rid)return; await sbFetch("/rest/v1/scientists?id=eq."+rid,{method:"DELETE"}); }
+var dirtyIds={},flushTimer=null;
+function markDirty(id){ if(!connected())return; dirtyIds[id]=true; if(flushTimer)clearTimeout(flushTimer); flushTimer=setTimeout(flushDirty,900); }
+async function flushDirty(){ var ids=Object.keys(dirtyIds); dirtyIds={}; for(var i=0;i<ids.length;i++){var p=store.profiles[ids[i]]; if(p)await cloudPushProfile(p,store.order.indexOf(ids[i]));} }
+function refreshCurrentView(){var v=currentView;
+  if(v==="home")renderHome(); else if(v==="experiments")renderExperiments(); else if(v==="progress")renderProgress();
+  else if(v==="certificate")renderCertificate(); else if(v==="settings")renderSettings();}
+
+/* Account panel UI (in Settings) */
+function accMsg(m,isErr){var s=byId("accMsg"); if(s){s.textContent=m||""; s.style.color=isErr?"var(--danger)":"var(--ink-soft)";}}
+function renderAccount(){
+  var box=byId("accountPanel"); if(!box)return; box.innerHTML="";
+  box.appendChild(el('<h3>☁️ Cloud sync</h3>'));
+  if(!signedIn()){
+    box.appendChild(el('<p style="color:var(--ink-soft);font-weight:600;margin-top:0">Log in to see Percy and Bernie’s progress on any device. Two grown-ups can each have their own login.</p>'));
+    var f=el('<div></div>');
+    var em=el('<input class="sci-name" style="width:100%;margin:6px 0" type="email" autocomplete="email" placeholder="Email">');
+    var pw=el('<input class="sci-name" style="width:100%;margin:6px 0" type="password" autocomplete="current-password" placeholder="Password (min 6 characters)">');
+    var row=el('<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>');
+    var login=el('<button class="btn btn-primary">Log in</button>');
+    var signup=el('<button class="btn btn-ghost">Create account</button>');
+    login.addEventListener("click",function(){accMsg("Logging in…"); authLogin(em.value.trim(),pw.value).then(function(){renderAccount(); go("home");}).catch(function(e){accMsg(e.message,true);});});
+    signup.addEventListener("click",function(){accMsg("Creating account…"); authSignup(em.value.trim(),pw.value).then(function(r){ if(r.session){renderAccount(); go("home");} else {accMsg("Account created — check your email to confirm, then log in.");} }).catch(function(e){accMsg(e.message,true);});});
+    row.appendChild(login); row.appendChild(signup);
+    f.appendChild(em); f.appendChild(pw); f.appendChild(row);
+    box.appendChild(f);
+  } else if(!auth.householdId){
+    box.appendChild(el('<p style="color:var(--ink-soft);font-weight:600;margin-top:0">Signed in as <strong>'+esc(auth.email||"")+'</strong>. Set up one shared household for your scientists.</p>'));
+    var create=el('<button class="btn btn-primary" style="margin:4px 0">Create our household</button>');
+    create.addEventListener("click",function(){accMsg("Setting up…"); cloudCreateHousehold("Our Lab").then(function(){renderAccount();}).catch(function(e){accMsg(e.message,true);});});
+    box.appendChild(create);
+    box.appendChild(el('<p style="color:var(--ink-soft);font-weight:700;margin:12px 0 4px">…or join the other parent’s household with their code:</p>'));
+    var jr=el('<div style="display:flex;gap:10px;flex-wrap:wrap"></div>');
+    var code=el('<input class="sci-name" placeholder="LAB-XXXXX" style="flex:1;min-width:140px">');
+    var join=el('<button class="btn btn-ghost">Join</button>');
+    join.addEventListener("click",function(){accMsg("Joining…"); cloudJoin(code.value.trim()).then(function(){renderAccount();}).catch(function(e){accMsg(e.message,true);});});
+    jr.appendChild(code); jr.appendChild(join); box.appendChild(jr);
+  } else {
+    box.appendChild(el('<p style="color:var(--ink-soft);font-weight:600;margin-top:0">Signed in as <strong>'+esc(auth.email||"")+'</strong> · <span style="color:var(--life);font-weight:800">Synced ✓</span></p>'));
+    var codeBox=el('<div class="callout why" style="margin:6px 0"><strong>Share this code</strong> with the other parent so they can see the same scientists:<div style="font-size:1.4rem;font-weight:900;letter-spacing:.05em;margin-top:6px">'+esc(auth.joinCode||"")+'</div></div>');
+    box.appendChild(codeBox);
+    var actions=el('<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>');
+    var syncNow=el('<button class="btn btn-ghost">↻ Sync now</button>');
+    syncNow.addEventListener("click",function(){accMsg("Syncing…"); cloudPull(false).then(function(){accMsg("Synced just now.");}).catch(function(e){accMsg(e.message,true);});});
+    var out=el('<button class="btn btn-ghost" style="color:var(--danger)">Log out</button>');
+    out.addEventListener("click",function(){authLogout(); renderAccount(); go("home");});
+    actions.appendChild(syncNow); actions.appendChild(out); box.appendChild(actions);
+  }
+  box.appendChild(el('<p id="accMsg" style="font-weight:700;font-size:.85rem;margin:10px 0 0;min-height:1em"></p>'));
+}
+
 /* ============================ WIRING ============================ */
-byId("nameInput").addEventListener("input",function(e){state.childName=e.target.value; save(); byId("greeting").textContent=state.childName?("Hi "+state.childName+" 👩‍🔬"):"Ready to experiment?"; renderWhoSwitch();});
+byId("nameInput").addEventListener("input",function(e){state.childName=e.target.value; save(); markDirty(store.activeId); byId("greeting").textContent=state.childName?("Hi "+state.childName+" 👩‍🔬"):"Ready to experiment?"; renderWhoSwitch();});
 byId("density").addEventListener("change",function(e){store.settings.density=e.target.value; applyDensity(); save()});
 byId("surpriseBtn").addEventListener("click",function(){
   var pool=EXPERIMENTS.filter(function(x){return !state.completed[x.id]}); if(pool.length===0)pool=EXPERIMENTS;
@@ -1433,6 +1594,11 @@ byId("resetBtn").addEventListener("click",function(){
 applyDensity();
 checkAchievements(); save();
 go("home");
+
+/* Resume cloud session + keep devices in sync */
+if(auth && auth.access_token){ afterAuth().then(refreshCurrentView).catch(function(){}); }
+window.addEventListener("focus",function(){ if(connected())cloudPull(false); });
+setInterval(function(){ if(connected())cloudPull(false); },25000);
 
 /* ============================ PWA (installable + offline) ============================ */
 if("serviceWorker" in navigator){
