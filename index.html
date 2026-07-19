@@ -2385,8 +2385,8 @@ function renderAccount(){
     var row=el('<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>');
     var login=el('<button class="btn btn-primary">Log in</button>');
     var signup=el('<button class="btn btn-ghost">Create account</button>');
-    login.addEventListener("click",function(){accMsg("Logging in…"); authLogin(em.value.trim(),pw.value).then(function(){renderAccount(); go("home");}).catch(function(e){accMsg(e.message,true);});});
-    signup.addEventListener("click",function(){accMsg("Creating account…"); authSignup(em.value.trim(),pw.value).then(function(r){ if(r.session){renderAccount(); go("home");} else {accMsg("Account created — check your email to confirm, then log in.");} }).catch(function(e){accMsg(e.message,true);});});
+    login.addEventListener("click",function(){accMsg("Logging in…"); authLogin(em.value.trim(),pw.value).then(function(){renderAccount();}).catch(function(e){accMsg(e.message,true);});});
+    signup.addEventListener("click",function(){accMsg("Creating account…"); authSignup(em.value.trim(),pw.value).then(function(r){ if(r.session){accMsg("Account created — you're signed in."); renderAccount();} else {accMsg("Account created — check your email to confirm, then log in.");} }).catch(function(e){accMsg(e.message,true);});});
     row.appendChild(login); row.appendChild(signup);
     f.appendChild(em); f.appendChild(pw); f.appendChild(row);
     box.appendChild(f);
